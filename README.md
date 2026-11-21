@@ -1,35 +1,57 @@
 <div align="center">
 
-# Reverse-Engineer Wi-Fi Router
+# Reverse Engineering Wi-Fi Router
 
-### Autonomous Security Auditing, Local API Discovery, and Telemetry Analysis for Consumer Gateway Architecture
+### Comprehensive Framework for Reverse Engineering Wi-Fi Router Firmware, Admin APIs, TR-069 Telemetry, and Wireless Security Architecture
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Platform: Claude Code](https://img.shields.io/badge/Platform-Claude%20Code-5A32A3.svg?style=flat-square)](SKILL.md)
 [![Scope: Local Subnet Only](https://img.shields.io/badge/Scope-Local%20Subnet%20Only-2ea44f.svg?style=flat-square)](#security-and-zero-leakage-architecture)
 [![Interface: CLI and Prompts](https://img.shields.io/badge/Interface-CLI%20%26%20Prompts-informational.svg?style=flat-square)](#deployment-and-usage-protocols)
+[![Topic: Router Reverse Engineering](https://img.shields.io/badge/Topic-Reverse%20Engineering%20Wi--Fi%20Router-orange.svg?style=flat-square)](https://github.com/smartworldarafath/Reverse-Engineer-WiFi-Router)
 
 <p align="center">
-  A disciplined security framework and agent skill for identifying Customer Premises Equipment (CPE) firmware interfaces, auditing hidden ISP telemetry channels, and diagnosing wireless bottlenecks strictly within local operational boundaries.
+  A disciplined open-source security engineering framework and autonomous agent skill dedicated to reverse engineering Wi-Fi router systems, discovering undocumented administrative endpoints, auditing carrier TR-069 ACS telemetry channels, and eliminating wireless performance bottlenecks strictly within local operational boundaries.
 </p>
 
 </div>
 
 ---
 
+## Executive Summary
+
+**Reverse Engineering Wi-Fi Router** (`Reverse-Engineer-WiFi-Router`) is an authoritative technical specification, Claude Code agent skill, and defensive security toolkit. It is engineered for security researchers, network engineers, and system administrators seeking to reverse engineer Wi-Fi router hardware, firmware architectures, and internal communication protocols without damaging equipment or violating operational boundaries.
+
+Consumer Customer Premises Equipment (CPE) -- including Wi-Fi routers, broadband gateways, and optical network terminals (ONTs) -- forms the crucial defensive perimeter between private local area networks (LANs) and public wide area networks (WANs). However, most consumer gateways operate proprietary, closed-source firmware containing undocumented administrative endpoints, persistent ISP monitoring daemons, unencrypted DNS forwarders, and persistent client logging.
+
+This project provides a reproducible, step-by-step methodology for reverse engineering Wi-Fi router interfaces, mapping internal JSON-RPC and CGI APIs, inspecting carrier-level CWMP (TR-069/TR-369) management channels, and hardening wireless infrastructure.
+
+---
+
 ## Table of Contents
 
-- [Abstract and System Overview](#abstract-and-system-overview)
+- [Executive Summary](#executive-summary)
+- [Why Reverse Engineering Wi-Fi Router Gateways Matters](#why-reverse-engineering-wi-fi-router-gateways-matters)
 - [Threat Model and Attack Surface Analysis](#threat-model-and-attack-surface-analysis)
-- [Reverse-Engineering Methodology](#reverse-engineering-methodology)
+  - [1. Carrier Remote Management Channels (TR-069 / CWMP)](#1-carrier-remote-management-channels-tr-069--cwmp)
+  - [2. Unencrypted DNS Query Interception](#2-unencrypted-dns-query-interception)
+  - [3. Geolocation Triangulation via BSSID Harvesting](#3-geolocation-triangulation-via-bssid-harvesting)
+  - [4. UPnP Dynamic Port Mapping and IGD Traversal](#4-upnp-dynamic-port-mapping-and-igd-traversal)
+- [Step-by-Step Wi-Fi Router Reverse Engineering Methodology](#step-by-step-wi-fi-router-reverse-engineering-methodology)
+  - [Phase 1: Hardware Identification and SoC Profiling](#phase-1-hardware-identification-and-soc-profiling)
+  - [Phase 2: Gateway Discovery and Subnet Enumeration](#phase-2-gateway-discovery-and-subnet-enumeration)
+  - [Phase 3: Administrative Web Surface Reverse Engineering](#phase-3-administrative-web-surface-reverse-engineering)
+  - [Phase 4: Undocumented API Endpoint Mapping](#phase-4-undocumented-api-endpoint-mapping)
 - [Operational Workflows](#operational-workflows)
   - [Workflow 1: Read-Only Privacy and Telemetry Audit](#workflow-1-read-only-privacy-and-telemetry-audit)
   - [Workflow 2: Wireless Performance Optimization](#workflow-2-wireless-performance-optimization)
 - [Security and Zero-Leakage Architecture](#security-and-zero-leakage-architecture)
-- [Empirical Case Study: Consumer Gateway Telemetry](#empirical-case-study-consumer-gateway-telemetry)
+  - [Local Keyring Integration](#local-keyring-integration)
+  - [Real-Time Stream Masking](#real-time-stream-masking)
+- [Empirical Case Study: Consumer Gateway Telemetry Audit](#empirical-case-study-consumer-gateway-telemetry-audit)
 - [Deployment and Usage Protocols](#deployment-and-usage-protocols)
-  - [Agent Skill Installation](#agent-skill-installation)
-  - [Standalone Prompt Execution](#standalone-prompt-execution)
+  - [Claude Code Agent Skill Installation](#claude-code-agent-skill-installation)
+  - [Standalone Technical Prompts](#standalone-technical-prompts)
 - [Diagnostic Utilities Reference](#diagnostic-utilities-reference)
   - [DNS Resolution Verifier: scripts/dns-check.sh](#dns-resolution-verifier-scriptsdns-checksh)
   - [PII and Secret Sanitizer: scripts/mask.py](#pii-and-secret-sanitizer-scriptsmaskpy)
@@ -38,26 +60,24 @@
 - [Supported Hardware and Firmware Ecosystems](#supported-hardware-and-firmware-ecosystems)
 - [Technical Frequently Asked Questions](#technical-frequently-asked-questions)
 - [Contribution Standards](#contribution-standards)
-- [License and Disclaimer](#license-and-disclaimer)
+- [License and Legal Disclaimer](#license-and-legal-disclaimer)
 
 ---
 
-## Abstract and System Overview
+## Why Reverse Engineering Wi-Fi Router Gateways Matters
 
-Consumer Customer Premises Equipment (CPE)—commonly marketed as Wi-Fi routers, broadband gateways, and optical network terminals (ONTs)—operates at the critical boundary between trusted private local area networks (LANs) and untrusted wide area networks (WANs). Despite occupying this privileged position, contemporary consumer routing hardware suffers from pervasive security and privacy deficiencies:
+Modern broadband gateways are embedded computers running variants of Linux (OpenWrt, BusyBox, LuCI, eCos, or proprietary vendor kernels). Despite their critical role in household and corporate security, they suffer from fundamental transparency issues:
 
-1. **Undocumented Administrative Interfaces:** Web management panels often utilize undocumented internal JSON-RPC endpoints, legacy CGI scripts, or hidden asynchronous endpoints designed without public API contracts.
-2. **Persistent ISP Remote Management:** Millions of ISP-supplied gateways run pre-configured Auto-Configuration Server (ACS) daemons implementing the CPE WAN Management Protocol (TR-069 / TR-369 CWMP), allowing upstream network operators unfettered remote access, telemetry harvesting, and forced firmware pushes without subscriber notification.
-3. **Pervasive Unencrypted Resolution:** Default gateway configurations consistently forward all LAN DNS queries in cleartext through regional telecom resolvers, exposing full host domain lookup patterns to intermediate wiretaps and passive ISP inspection.
-4. **Permanent Hardware Logging:** Devices maintain persistent historical tables of physical MAC addresses, hostnames, and connection timestamps long after transient clients disconnect.
-
-**Reverse-Engineer Wi-Fi Router** (`Reverse-Engineer-WiFi-Router`) is an open-source technical specification, Claude Code agent skill, and standalone prompt toolkit. It enables AI coding and security agents to visually inspect physical router chassis hardware, deduce administrative web endpoints, interact with internal APIs without credential exposure, audit active ISP telemetry channels, and optimize wireless configurations under strict user consent.
+1. **Undocumented Administrative APIs:** Web interfaces communicate with underlying daemons through undocumented HTTP POST endpoints, JSON-RPC endpoints, or legacy CGI routines. Reverse engineering Wi-Fi router web interfaces exposes these endpoints for automation and auditing.
+2. **Hidden ISP Telemetry Daemons:** Internet service providers routinely configure Auto-Configuration Server (ACS) daemons using the TR-069 / TR-369 protocol. These daemons maintain persistent connections to upstream ISP infrastructure, allowing remote configuration changes, telemetry extraction, and firmware updates without user knowledge.
+3. **Pervasive DNS Tracking:** Most routers forward all local domain lookups in cleartext to ISP DNS servers, exposing every browsing session to passive eavesdropping.
+4. **Persistent Client Association History:** Many consumer routers record device MAC addresses, device hostnames, and connection timestamps permanently in local flash memory or volatile RAM tables.
 
 ---
 
 ## Threat Model and Attack Surface Analysis
 
-The operational model analyzes the local gateway across four primary threat vectors:
+When conducting Wi-Fi router reverse engineering, the gateway architecture is evaluated across four core attack vectors:
 
 ```
 +-----------------------------------------------------------------------+
@@ -75,12 +95,12 @@ The operational model analyzes the local gateway across four primary threat vect
 |  +-----------------------------------------------------------------+  |
 |  | Gateway OS (Linux Kernel, BusyBox, LuCI, eCos, Proprietary RTOS)|  |
 |  +-----------------------------------------------------------------+  |
-|  | Services:                                                       |  |
-|  | - Web Console (lighttpd, uHTTPd, mini_httpd, Boa)               |  |
-|  | - Remote Agent (cwmp, tr069client, acs_client)                  |  |
+|  | Embedded Services:                                              |  |
+|  | - Web Console (lighttpd, uHTTPd, mini_httpd, Boa, nginx)       |  |
+|  | - Remote Agent (cwmp, tr069client, acs_client, tr181)           |  |
 |  | - Port Mapping (miniupnpd, IGD daemon)                          |  |
 |  | - Resolver Proxy (dnsmasq, unbound, system resolver)           |  |
-|  | - Telemetry Storage (ARP cache, DHCP lease table, system logs)  |  |
+|  | - Telemetry Storage (ARP cache, DHCP lease table, syslog)       |  |
 |  +-----------------------------------------------------------------+  |
 |                                   |                                   |
 +-----------------------------------|-----------------------------------+
@@ -96,46 +116,52 @@ The operational model analyzes the local gateway across four primary threat vect
 +------------+               +------------+               +---------------+
 ```
 
-### 1. Carrier Remote Access Vectors (TR-069 / CWMP)
-Broadband carriers utilize TR-069 (CWMP) to administer subscriber endpoints over HTTP/SOAP. An active `TR069_INTERNET` WAN profile or listening ACS client exposes device parameters—including internal routing tables, associated client identifiers, and wireless configuration files—to upstream queries. If the carrier Auto-Configuration Server is compromised or operates with deprecated TLS configurations, the subscriber network perimeter is completely breached.
+### 1. Carrier Remote Management Channels (TR-069 / CWMP)
+Carrier broadband gateways implement the TR-069 (CWMP) protocol over SOAP/XML. An active `TR069_INTERNET` WAN profile or ACS client allows external servers to query internal routing tables, retrieve connected client lists, and modify router settings. Reverse engineering the router's configuration tables reveals the ACS server URL, inform intervals, and credential states.
 
-### 2. DNS Query Exposure and Cleartext Interception
-Standard CPE gateways deploy local caching forwarders (`dnsmasq`) configured to upstream queries directly to ISP-assigned recursive resolvers. Without DNS-over-HTTPS (DoH) or DNS-over-TLS (DoT), every hostname resolution traversing the WAN interface is subject to passive eavesdropping, SNI correlation, and DNS poisoning.
+### 2. Unencrypted DNS Query Interception
+By default, consumer gateways deploy `dnsmasq` or embedded resolver forwarders that route queries to upstream telecom resolvers in cleartext. Without DNS-over-HTTPS (DoH) or DNS-over-TLS (DoT), all domain lookups are visible to intermediate network entities.
 
 ### 3. Geolocation Triangulation via BSSID Harvesting
-Wireless Access Points periodically transmit 802.11 beacon frames containing their Basic Service Set Identifier (BSSID). Commercial positioning systems (Apple Location Services, Google Location Services) correlate mapped BSSIDs with GPS coordinates gathered from passing mobile devices. Unless access point SSIDs incorporate the `_nomap` opt-out suffix, physical household coordinates remain cataloged in global databases.
+Wireless Access Points periodically broadcast 802.11 beacon frames containing their Basic Service Set Identifier (BSSID). Commercial positioning databases (Apple, Google, Skyhook) index BSSIDs alongside physical GPS coordinates gathered from mobile devices. Appending `_nomap` to the SSID prevents insertion into these registries.
 
-### 4. UPnP / NAT-PMP IGD Traversal
-Active Universal Plug and Play (UPnP) Internet Gateway Device (IGD) services allow unauthenticated endpoints on the local subnet to dynamically map public WAN ports to internal hosts, bypassing perimeter firewall policies without administrative intervention.
+### 4. UPnP Dynamic Port Mapping and IGD Traversal
+Active Universal Plug and Play (UPnP) IGD daemons permit unauthenticated devices on the local subnet to open inbound public WAN ports, bypassing firewall protections without administrative confirmation.
 
 ---
 
-## Reverse-Engineering Methodology
+## Step-by-Step Wi-Fi Router Reverse Engineering Methodology
 
-The framework operates via a progressive discovery pipeline:
+The framework utilizes a systematic, non-invasive methodology for reverse engineering Wi-Fi router devices:
 
-1. **Hardware Profiling from Physical Signatures:** The operator provides a photograph of the physical router chassis with all credential labels occluded. The model identifies:
-   - Vendor, chassis architecture, and commercial model nomenclature.
-   - FCC ID, hardware revision indicators, and industrial design cues.
-   - Underlying System-on-Chip (SoC) family (Broadcom, MediaTek, Qualcomm Atheros, Realtek).
-   - Expected firmware distribution (OpenWrt derivative, Asuswrt, vendor-modified embedded Linux).
+### Phase 1: Hardware Identification and SoC Profiling
+1. Examine external chassis design, antenna configuration, and port layout (with serial/credential stickers occluded).
+2. Cross-reference FCC ID records and hardware revision indicators to determine the internal System-on-Chip (SoC) family:
+   - Broadcom (BCM series)
+   - MediaTek / Ralink (MT76xx series)
+   - Qualcomm Atheros (QCA series)
+   - Realtek (RTL series)
+3. Identify the base firmware family (OpenWrt derivative, Asuswrt, embedded proprietary RTOS).
 
-2. **Gateway Discovery and Subnet Identification:** The agent interrogates local network subsystem interfaces to identify the primary default gateway:
-   - macOS: `route -n get default`
-   - Linux: `ip route show default`
-   - Windows: `Get-NetRoute -DestinationPrefix '0.0.0.0/0'` or `ipconfig`
+### Phase 2: Gateway Discovery and Subnet Enumeration
+Identify the primary gateway interface on the active operating system:
+- **macOS:** `route -n get default`
+- **Linux:** `ip route show default`
+- **Windows:** `Get-NetRoute -DestinationPrefix '0.0.0.0/0'` or `ipconfig`
 
-3. **Administrative Surface Enumeration:** Upon locating the gateway address (e.g., `192.168.1.1`), the agent probes the HTTP/HTTPS listeners:
-   - Inspects response headers (`Server: mini_httpd`, `Server: uHTTPd`, `Server: lighttpd`).
-   - Evaluates the DOM and client-side JavaScript source of the login interface.
-   - Deconstructs client-side hashing algorithms (MD5 challenge-response, SHA-256 PBKDF2 iterations, AES encryption wrappers) utilized during authentication.
+### Phase 3: Administrative Web Surface Reverse Engineering
+Inspect the HTTP/HTTPS management server listening on the gateway IP:
+- Analyze server response headers (`Server: mini_httpd`, `Server: uHTTPd`, `Server: lighttpd`).
+- Inspect the DOM tree and client-side JavaScript source of the login portal.
+- Deconstruct client-side authentication mechanisms (MD5 challenge-response, SHA-256 PBKDF2 iterations, AES token wrappers).
 
-4. **API Endpoint Mapping:** Home router management consoles rarely expose structured REST APIs with OpenAPI specifications. Instead, they operate through internal mechanisms:
-   - Asynchronous form posts via hidden CGI scripts (`/cgi-bin/luci`, `/apply.cgi`, `/router_status.cgi`).
-   - Internal JSON-RPC dispatchers (`/ubus`, `/api/v1/status`).
-   - Dynamic script parameter reflection (`/asp/status.asp`, `/data/wan_info.json`).
+### Phase 4: Undocumented API Endpoint Mapping
+Identify hidden management endpoints:
+- Dynamic CGI dispatchers (`/cgi-bin/luci`, `/apply.cgi`, `/router_status.cgi`).
+- Asynchronous JSON-RPC channels (`/ubus`, `/api/v1/status`).
+- Dynamic script parameter reflection (`/asp/status.asp`, `/data/wan_info.json`).
 
-The agent constructs an internal map of these endpoints, cataloging paths, request types, and token dependencies into a local configuration artifact.
+The agent logs verified endpoints in a structured local mapping table for subsequent read-only auditing or performance optimization.
 
 ---
 
@@ -143,7 +169,7 @@ The agent constructs an internal map of these endpoints, cataloging paths, reque
 
 ### Workflow 1: Read-Only Privacy and Telemetry Audit
 
-This workflow extracts configuration and telemetry data without modifying device state:
+This workflow conducts an exhaustive inspection of router privacy parameters without modifying system state:
 
 ```
 +-----------------------------------------------------------------------+
@@ -153,7 +179,7 @@ This workflow extracts configuration and telemetry data without modifying device
                                     v
 +-----------------------------------------------------------------------+
 |               Phase 2: Core Data Collection Matrix                    |
-|  - Active/Historical DHCP & ARP Tables (MAC, IP, Hostname, Leases)    |
+|  - Active & Historical DHCP/ARP Tables (MAC, IP, Hostname, Leases)    |
 |  - WAN Profiles & Remote Management Channels (TR-069, CWMP, ACS)      |
 |  - Firmware Release Timestamp, Kernel Version & Update Mechanisms     |
 |  - Recursive DNS Forwarders, Dynamic Upstream Servers, Root Resolvers |
@@ -166,7 +192,7 @@ This workflow extracts configuration and telemetry data without modifying device
 |           Phase 3: Workstation-Level Verification Checks             |
 |  - Upstream Resolver Identity (scripts/dns-check.sh)                  |
 |  - Route Path & Carrier-Grade NAT (CGNAT) Hop Discovery (traceroute)  |
-|  - Optional: Android TV / ADB Netstats Inspection (If Authorized)     |
+|  - Local Interface Verification (scripts/mask.py)                     |
 +-----------------------------------------------------------------------+
                                     |
                                     v
@@ -175,35 +201,35 @@ This workflow extracts configuration and telemetry data without modifying device
 +-----------------------------------------------------------------------+
 ```
 
-The output report delivers three explicit deliverables:
-1. **What your router knows:** Full accounting of persistent device logs, hardware addresses, and connection records.
-2. **What your provider can see:** Complete status of TR-069 management links, DNS exposure, and carrier control surfaces.
-3. **How to fix it:** Concrete, vendor-neutral remediation steps targeting each identified gap.
+The output report delivers three actionable sections:
+1. **Internal Data Retention:** Device logs, stored hardware addresses, and connection history.
+2. **External Telemetry Exposure:** TR-069 management links, DNS leakage, and carrier control surfaces.
+3. **Remediation Plan:** Vendor-neutral hardening instructions for closing identified exposures.
 
 ---
 
 ### Workflow 2: Wireless Performance Optimization
 
-When performance degradation or high latency occurs, the agent executes diagnostic and tuning routines under explicit user supervision:
+When experiencing latency spikes, packet loss, or throughput degradation, the optimization workflow diagnoses and refines wireless settings under strict user authorization:
 
 1. **Environmental Assessment:**
-   - Evaluates signal-to-noise ratio (SNR) and Received Signal Strength Indicator (RSSI).
-   - Detects channel utilization and co-channel interference from adjacent access points across 2.4 GHz, 5 GHz, and 6 GHz spectrums.
-   - Evaluates client band steering policies and 802.11k/v/r roaming capabilities.
-2. **Configuration Comparison:**
-   - Compares active channel widths (20 MHz, 40 MHz, 80 MHz, 160 MHz) against physical interference limits.
-   - Audits physical layer (PHY) negotiation speeds and duplex modes across WAN/LAN Ethernet ports.
-3. **Change Control Protocol:**
-   - Backs up current device configuration state prior to any modification.
-   - Displays exact proposed parameter changes (`old_value -> new_value`).
-   - Requires explicit operator authorization (`yes`) before sending write requests to the API.
-   - Performs automated post-change validation and provides immediate rollback routines.
+   - Evaluates Received Signal Strength Indicator (RSSI) and Signal-to-Noise Ratio (SNR).
+   - Scans 2.4 GHz, 5 GHz, and 6 GHz spectrums to detect co-channel and adjacent-channel interference.
+   - Evaluates band steering policies and 802.11k/v/r fast-roaming support.
+2. **Channel and Bandwidth Tuning:**
+   - Evaluates channel widths (20 MHz, 40 MHz, 80 MHz, 160 MHz) against environmental noise floors.
+   - Audits Ethernet PHY negotiation speeds (100 Mbps vs 1 Gbps vs 2.5 Gbps) to detect duplex mismatches.
+3. **Controlled Modification Protocol:**
+   - Creates a snapshot of current router settings before changes.
+   - Displays proposed modifications (`old_value -> new_value`).
+   - Requires explicit human approval (`yes`) prior to transmitting write requests.
+   - Executes automated post-change connectivity checks with immediate rollback capability.
 
 ---
 
 ## Security and Zero-Leakage Architecture
 
-To protect home network credentials and sensitive infrastructure data, this framework enforces strict technical controls:
+To ensure sensitive network credentials and telemetry data are never exposed, this framework strictly follows local zero-leakage security protocols:
 
 ```
 [ Local User Terminal ] 
@@ -233,33 +259,33 @@ To protect home network credentials and sensitive infrastructure data, this fram
 [ AI Context / User Display ]
 ```
 
-### Credential Protection Guarantee
-- Router administrative passwords must never be input into the chat interface.
-- The framework generates native system commands to store the password in the host OS credential manager:
-  - **macOS:** `security add-generic-password -s "wifi-router-admin" -a "admin" -w "<password>"`
-  - **Windows:** `cmdkey /generic:wifi-router-admin /user:admin /pass:"<password>"`
-  - **Linux:** `secret-tool store --label="wifi-router-admin" service wifi-router-admin username admin`
-- Authentication scripts read credentials directly from system keychains at runtime via local subprocess pipes.
+### Local Keyring Integration
+Administrative credentials are never pasted into chat contexts. Instead, credentials reside in host OS secure keyrings:
+- **macOS:** `security add-generic-password -s "wifi-router-admin" -a "admin" -w "<password>"`
+- **Windows:** `cmdkey /generic:wifi-router-admin /user:admin /pass:"<password>"`
+- **Linux:** `secret-tool store --label="wifi-router-admin" service wifi-router-admin username admin`
 
-### Data Sanitization Protocol
-Diagnostic output streams must be piped through `scripts/mask.py` prior to display. The sanitization engine applies regex transformations to neutralize private data:
+Local scripts read credentials dynamically via standard input pipes at runtime.
 
-| Sensitive Identifier | Raw Format Pattern | Masked Output Representation |
+### Real-Time Stream Masking
+All diagnostic streams pass through `scripts/mask.py` prior to display. The sanitization engine applies regex transformations to neutralize sensitive identifiers:
+
+| Identifier Type | Raw Input Example | Sanitized Output |
 | :--- | :--- | :--- |
 | **Public IPv4 Address** | `203.0.113.45` | `203.0.x.x` |
 | **Global IPv6 Address** | `2001:db8:85a3::8a2e:370:7334` | `xxxx:xxxx::xxxx` |
 | **Device MAC Address** | `b4:5d:50:8f:92:1a` | `b4:5d:50:**:**:**` |
 | **Hardware Serial Number** | `SN: 210235A1BC29381` | `SN: ****` |
 | **Wireless SSID (XML/JSON)** | `<ssid>HomeNetwork_5G</ssid>` | `<ssid>****</ssid>` |
-| **Host Workstation Identifier**| `DESKTOP-8K7J49Q` | `DESKTOP-****` |
+| **Host Workstation Name** | `DESKTOP-8K7J49Q` | `DESKTOP-****` |
 
 ---
 
-## Empirical Case Study: Consumer Gateway Telemetry
+## Empirical Case Study: Consumer Gateway Telemetry Audit
 
-The following data table illustrates verified telemetry parameters captured from a standard tier-1 ISP fiber optical network gateway (ZTE / Huawei hybrid platform) during an audit:
+The following table summarizes empirical parameters captured during a privacy audit of a tier-1 ISP fiber optical network terminal (ZTE / Huawei hybrid gateway platform):
 
-| Inspection Vector | Factory / Observed State | Security and Privacy Implication |
+| Inspection Vector | Observed Gateway State | Privacy and Security Implication |
 | :--- | :--- | :--- |
 | **Primary WAN Interface** | `1_TR069_INTERNET_R_VID_10` | The primary data route is permanently multiplexed with an ACS management tunnel. |
 | **ACS Connection Status** | `PeriodicInform: Enabled (Interval: 86400s)` | The router transmits device parameters and network states to carrier servers daily. |
@@ -273,15 +299,15 @@ The following data table illustrates verified telemetry parameters captured from
 
 ## Deployment and Usage Protocols
 
-### Agent Skill Installation
+### Claude Code Agent Skill Installation
 
-To install as an active Claude Code skill:
+Install the repository as a global skill:
 
 ```bash
 git clone https://github.com/smartworldarafath/Reverse-Engineer-WiFi-Router.git ~/.claude/skills/reverse-engineer-wifi-router
 ```
 
-Once installed, ensure your workstation is connected to the target home Wi-Fi network. Launch Claude Code, provide an image of the physical router chassis (with sensitive stickers covered), and submit standard command prompts:
+Connect your computer to the target Wi-Fi network, launch your AI agent, provide an image of the router chassis (covering serial stickers), and execute:
 
 ```text
 what does my router know about me?
@@ -293,12 +319,11 @@ or
 my Wi-Fi is slow, fix it
 ```
 
-### Standalone Prompt Execution
+### Standalone Technical Prompts
 
-If operating without local agent skill extensions, the workflow can be executed directly by pasting the prepared technical prompts into an active session:
-
-- **Privacy Audit Prompt:** Copy the raw contents of [`prompts/privacy-check.md`](prompts/privacy-check.md) into the prompt context along with the router chassis photograph.
-- **Performance Diagnostic Prompt:** Copy the raw contents of [`prompts/fix-slow-wifi.md`](prompts/fix-slow-wifi.md) into the prompt context to initiate channel and bandwidth diagnosis.
+If executing without local agent skill loaders, run the standalone prompts directly:
+- **Privacy Audit:** [`prompts/privacy-check.md`](prompts/privacy-check.md)
+- **Performance Optimization:** [`prompts/fix-slow-wifi.md`](prompts/fix-slow-wifi.md)
 
 ---
 
@@ -306,7 +331,7 @@ If operating without local agent skill extensions, the workflow can be executed 
 
 ### DNS Resolution Verifier: `scripts/dns-check.sh`
 
-`dns-check.sh` queries authoritative Akamai verification endpoints to determine the outward-facing public resolver handling host queries:
+`dns-check.sh` interrogates authoritative Akamai verification resolvers to identify the upstream resolver handling workstation requests:
 
 ```bash
 #!/usr/bin/env bash
@@ -334,27 +359,21 @@ fi
 
 ### PII and Secret Sanitizer: `scripts/mask.py`
 
-`mask.py` is a streaming filter designed to redact PII, hardware identifiers, and session tokens from diagnostic logs prior to terminal display:
+`mask.py` is an automated stream sanitizer designed to neutralize PII, MAC addresses, public IP addresses, and session credentials before logs are rendered in terminal windows:
 
 ```bash
-# Pipe any command output through the sanitizer
+# Pipe any standard diagnostic command output
 ipconfig /all | python3 scripts/mask.py
 
-# Pipe router JSON status responses
+# Pipe router JSON API status responses
 curl -s http://192.168.1.1/api/status | python3 scripts/mask.py
 ```
-
-The script protects private subnets while retaining operational context:
-- Retains local loopback (`127.0.0.1`), RFC 1918 private subnets (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`), and well-known public DNS resolvers (`1.1.1.1`, `8.8.8.8`, `9.9.9.9`).
-- Replaces carrier-grade NAT (`100.64.0.0/10`) and public routable IPv4 blocks with partial masks (`203.0.x.x`).
-- Redacts XML tags, quoted JSON parameters, and plain key-value assignments containing keys: `serial`, `ssid`, `bssid`, `passphrase`, `password`, `passwd`, `psk`, `wpa_key`.
-- Normalizes and sanitizes hardware MAC addresses and Windows workstation hostnames (`DESKTOP-*`, `LAPTOP-*`).
 
 ---
 
 ## CPE Hardening and Remediation Protocol
 
-Once the diagnostic baseline is established, apply the following systematic remediation steps:
+Follow this structured remediation workflow to harden consumer router hardware:
 
 ```
 [ Step 1: Credential Rotation ]
@@ -377,45 +396,30 @@ Append '_nomap' to all operational 2.4 GHz, 5 GHz, and 6 GHz SSIDs.
 Migrate clients to 5 GHz; restrict 2.4 GHz to clean non-overlapping channels (1, 6, 11).
 ```
 
-### 1. Cryptographic DNS Hardening (DoH / DoT)
-Eliminate plaintext carrier DNS snooping by deploying DNS-over-HTTPS across all active endpoints:
-- **Android:** Navigate to `Settings > Network & internet > Private DNS` and configure a TLS endpoint (e.g., `one.one.one.one` or `dns.quad9.net`).
-- **Microsoft Windows 11:** Navigate to `Network & internet > Wi-Fi > Hardware properties`, select `Edit DNS`, set to manual IPv4/IPv6, and select `Encrypted only (DNS over HTTPS)`.
-- **Apple iOS / macOS:** Install an encrypted DNS configuration profile or utilize Cloudflare's verified 1.1.1.1 utility in DNS-only operational mode.
-- **Web Browsers (Chrome / Firefox):** Enable `Use secure DNS` / `DNS over HTTPS` in advanced security preferences.
-
-### 2. MAC Address Randomization
-Enforce private hardware addresses on mobile client operating systems (iOS `Private Wi-Fi Address`, Android `Use randomized MAC`) to prevent router-side client tracking across network re-associations.
-
-### 3. Geolocation Registry Opt-Out (`_nomap`)
-Append the suffix `_nomap` to your wireless Network Name / SSID (e.g., `Enterprise_Gateway_nomap`). This signals to commercial geolocation mapping engines (Apple Location Services, Google Location Services) that the access point BSSID must not be indexed in global positioning registries.
-
-### 4. Spectrum and Channel Isolation
-- Disable legacy 802.11b rates to eliminate transmission airtime waste.
-- Fix 2.4 GHz band allocations strictly to non-overlapping channels **1, 6, or 11** at **20 MHz** channel width to minimize adjacent-channel bleed.
-- Migrate high-throughput workstations, media devices, and mobile units to **5 GHz** or **6 GHz** bands operating at 80 MHz channel widths.
+1. **Encrypted DNS Configuration:** Deploy DNS-over-HTTPS (DoH) across endpoints (Android Private DNS, Windows 11 Encrypted DNS, iOS configuration profiles, Chrome/Firefox Secure DNS).
+2. **MAC Address Randomization:** Enable private MAC addressing on client operating systems to prevent permanent client tracking.
+3. **Geolocation Database Opt-Out (`_nomap`):** Append `_nomap` to all operational SSIDs to prevent Wi-Fi Positioning Systems from indexing your access point BSSID.
+4. **Channel and Band Isolation:** Restrict 2.4 GHz channels strictly to non-overlapping channels **1, 6, or 11** at **20 MHz** width. Migrate high-bandwidth devices to **5 GHz** or **6 GHz** at 80 MHz channel widths.
 
 ---
 
 ## Academic Research and Formal References
 
-The analytical scope of this toolkit builds upon empirical findings documented in the following peer-reviewed cybersecurity literature:
+This framework draws upon peer-reviewed cybersecurity literature:
 
 1. **Carrier-Scale TR-069 Deployment Vulnerabilities:**  
    *Hils, M., & Böhme, R. (2020).* "Watching the Weak Link into Your Home: A Systematic Large-Scale Study of the TR-069 Ecosystem." *Applied Cryptography and Network Security (ACNS 2020)*. Lecture Notes in Computer Science, vol 12146. Springer, Cham.  
    Preprint: [arXiv:2001.02564](https://arxiv.org/abs/2001.02564).  
-   *Documenting empirical inspection of approximately 1 billion broadband endpoints operating active TR-069 CPE management agents vulnerable to misconfiguration and unauthorized configuration extraction.*
+   *Analyzed approximately 1 billion broadband endpoints operating active TR-069 CPE management agents vulnerable to misconfiguration and unauthorized configuration extraction.*
 
 2. **Global Wireless Surveillance via BSSID Positioning:**  
    *Rye, E. C., & Levin, D. (2024).* "Surveilling the Masses with Wi-Fi-Based Positioning Systems." *Proceedings of the ACM on Measurement and Analysis of Computing Systems (SIGMETRICS 2024)*.  
    Preprint: [arXiv:2405.14975](https://arxiv.org/abs/2405.14975).  
-   *Demonstrating that uncurated Wi-Fi Positioning Systems (WPS) allow third parties to track device mobility, household locations, and perimeter hardware across billions of consumer BSSIDs.*
+   *Demonstrated that Wi-Fi Positioning Systems (WPS) permit third parties to track device mobility, household coordinates, and perimeter hardware across billions of consumer BSSIDs.*
 
 ---
 
 ## Supported Hardware and Firmware Ecosystems
-
-This framework is vendor-neutral and designed to evaluate routers running standard embedded administrative systems:
 
 | Hardware Vendor / OS Family | Management Interface Type | Typical Gateway Endpoints | Audit Feasibility |
 | :--- | :--- | :--- | :--- |
@@ -432,8 +436,8 @@ This framework is vendor-neutral and designed to evaluate routers running standa
 
 ## Technical Frequently Asked Questions
 
-#### Q1: Does Reverse-Engineer Wi-Fi Router perform firmware flashing or modify low-level NVRAM?
-No. The tool operates exclusively at the application and management layers of the router's existing administration console. It does not overwrite bootloaders, write to flash memory partitions, or install custom kernel packages.
+#### Q1: Does Reverse Engineering Wi-Fi Router modify flash memory or NVRAM?
+No. The framework operates exclusively at the application and management layers of the router's existing administration console. It does not overwrite bootloaders, write to flash partitions, or install custom kernel packages.
 
 #### Q2: Can this framework compromise or brick my device?
 No. The privacy audit workflow is strictly read-only. In the performance optimization workflow, only standard wireless settings exposed by the manufacturer's own web panel (such as channel assignment or channel width) are adjusted, and every transaction requires explicit operator approval before execution.
@@ -465,10 +469,10 @@ git push origin feature/router-model-mapping
 
 ---
 
-## License and Disclaimer
+## License and Legal Disclaimer
 
 ### License
 This project is licensed under the terms of the **[MIT License](LICENSE)**.
 
-### Disclaimer
+### Legal Disclaimer
 This software is provided for defensive security evaluation, privacy auditing, and network optimization purposes strictly on hardware owned by the operator or on networks where explicit operational authorization has been granted. Inspecting, auditing, or modifying network infrastructure without administrative rights is strictly prohibited. The maintainers assume no liability for misuse or operational interruption resulting from the use of this toolkit.
