@@ -1,33 +1,17 @@
-# Fix Slow Wi-Fi Prompt
+# Fix slow Wi-Fi
 
-Diagnose and optimize your Wi-Fi router settings to resolve speed and lag issues.
+Paste it into Claude:
 
----
-
-## Instructions
-
-Paste the prompt below into Claude Code while your computer is connected to your home Wi-Fi network.
-
-```markdown
-My Wi-Fi is slow and laggy. Please help me diagnose and fix it using my router's local admin API.
-I have attached a photo of my router (with the password sticker covered).
-
-Please follow these safety rules:
-1. Work locally on my network without password guessing or exploits.
-2. If router credentials are required, provide a terminal command to store the password in my local system keystore. Never prompt for or display passwords in chat.
-3. Mask sensitive information (public IP, MAC addresses, serial numbers, SSID).
-4. Do NOT change any settings automatically. Always explain the diagnosis and wait for my explicit confirmation before applying any changes.
-
-Please:
-1. Identify the router model from the photo and locate its local admin API.
-2. Diagnose why the connection is slow (interference, crowded channels, 2.4 GHz vs 5 GHz/6 GHz band allocation, channel width, device saturation).
-3. Propose optimal adjustments and, upon my approval, apply the changes to fix my Wi-Fi.
 ```
+I attached a photo of my router (if it shows a password, never repeat or save it). This is my own router on my home network. My Wi-Fi is slow: find out why, fix it, and leave me a way to control the router from this chat. If I say "just diagnose", change nothing.
 
-## Diagnostics Covered
+Done means: all router settings backed up in a "router" folder in my home folder, a speed test before and after, each fix applied only after my yes, a small tool so I can ask here "who's on my Wi-Fi" or "reboot the router", and a report: before X Mbps vs after Y Mbps, what changed, how to undo it.
 
-- **Band Selection**: Checking whether high-bandwidth devices are stuck on congested 2.4 GHz instead of 5 GHz / 6 GHz.
-- **Channel Congestion**: Scanning neighboring access points to find clean non-overlapping channels (1, 6, 11 on 2.4 GHz, or clean 5 GHz channels).
-- **Channel Width**: Verifying if channel width is capped (e.g. 20 MHz vs 40/80/160 MHz).
-- **Client Bandwidth Hogs**: Inspecting active device throughput to catch background bandwidth consumers.
-- **WAN Port Negotiation**: Verifying Ethernet link speed between modem and router (100 Mbps fast ethernet vs 1000 Mbps gigabit).
+- Don't stop at the first wall. Try an official API, an open-source library or Home Assistant integration for this model, or the admin page's own JavaScript API. If login needs a captcha or my provider's account, open a browser and let me log in myself. If my provider hides the settings, tell me where to unlock them.
+- Password: give me one terminal command that saves it to my system's password store and read it from there. Never ask for it in chat, never print passwords, tokens or cookies. If login fails once, stop and ask me.
+- Check speed (including lag under load) and every Wi-Fi setting vs the best my router allows: band, channel and neighbors on it, width, mode, power, band steering.
+- Wi-Fi settings only, old and new value shown before each change. Never change the Wi-Fi name or passwords, reboot without asking, update firmware, reset, or use exploits. If a form resends the Wi-Fi password, keep it unchanged; read every value back after a change.
+- If the router can't be changed, fix what you can on my computer and write the exact message to send my provider.
+
+End with: Fixed, How to undo, What I need from you.
+```

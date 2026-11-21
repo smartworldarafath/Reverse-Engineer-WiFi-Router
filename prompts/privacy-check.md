@@ -1,35 +1,23 @@
-# Privacy Check Prompt
+# What does my router know about me?
 
-Run a privacy and security audit on your home Wi-Fi router.
+Paste it into Claude Code with a photo of your router:
 
----
-
-## Instructions
-
-Paste the prompt below into Claude Code while your computer is connected to your home Wi-Fi network.
-
-```markdown
-I want to run a privacy check on my home Wi-Fi router. 
-I have attached a photo of my router (with the password sticker covered).
-
-Please perform a read-only privacy audit following these safety rules:
-1. Operate strictly on my local network. Do not attempt external scans, password guessing, or exploits.
-2. Never ask me to type my admin password in the chat. If authentication is needed, give me a single terminal command to save it to my local system password store.
-3. Mask sensitive data (public IPs, second half of MAC addresses, serial numbers, and Wi-Fi names) in all outputs.
-
-Please analyze the router photo, deduce the administration interface/API, inspect my router, and answer:
-- What does my router know about me? (connected devices history, logs, tracked traffic)
-- What can my ISP / internet provider see and reach? (TR-069 / remote management channels, plain-text DNS lookups, firmware update control)
-- What specific steps should I take to fix and lock down my privacy?
 ```
+I want to see what my own home router knows about me and what my internet provider can see. I've attached a photo of my router with the password sticker covered.
 
-## How It Works
+1. From the photo, identify the router model and find its admin page on my network. If it's app-only with no web page, tell me what the app can show instead.
+2. Log in with my admin password. Ask me to type it into a hidden Terminal prompt or the system keychain, never into this chat. Never guess passwords.
+3. These panels usually have no public API. Reverse-engineer how the panel itself loads its data (its login and internal requests) and read everything it shows me. If a page is missing, look for the same data elsewhere in the panel.
+4. Show me:
+   - every device the router remembers, and which are online now
+   - the internet connection names and any sign of remote management by my provider (TR-069, CWMP, ACS)
+   - whether I can update the firmware myself or only my provider can
+   - which DNS servers my devices use and who owns them (whois)
+   - ports opened automatically by my devices (UPnP)
+   - which logs the router keeps and whether they have timestamps
+5. From this computer, show my DNS servers and the first hops of a traceroute, so I can see which traffic goes through my provider.
 
-1. **Identification**: Claude analyzes the physical router photo to identify the manufacturer, exact model, hardware version, and typical admin interface layout.
-2. **Local Gateway Discovery**: Claude identifies your local gateway IP (e.g., `192.168.1.1`) and maps the endpoints.
-3. **Audit Execution**: Claude queries the local router API to check:
-   - Device history table (all devices that have ever connected).
-   - Remote management configuration (TR-069, CWMP, ACS settings).
-   - Upstream DNS servers and plain-text lookup leakage.
-   - Firmware age and update control.
-4. **Actionable Report**: You receive a clear summary with concrete remediation steps (Encrypted DNS, `_nomap`, Private Wi-Fi MACs, password rotation).
+Rules: read-only. Change no router setting and don't reboot. If viewing something needs a setting switched, ask me first and switch it back afterwards. No exploits, no scanning anything outside my home network, never print passwords or tokens. Mask MAC addresses and my public IP in everything you show.
+
+Done means a short report with three headings: What my router knows, What my provider can see, How to fix it. In the fix part, give the official steps to turn on encrypted DNS on each of my devices, how to add _nomap to my Wi-Fi name, and anything else on the router worth changing. Ask before changing anything.
+```

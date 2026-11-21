@@ -21,7 +21,7 @@ No router manual, no tutorials. Your own network only, no exploits, no password 
 As a Claude Code skill:
 
 ```bash
-git clone https://github.com/smartworldarafath/Wi-Fi ~/.claude/skills/reverse-engineer-wifi-router
+git clone https://github.com/Bodila51/reverse-engineer-Wi-Fi-router ~/.claude/skills/reverse-engineer-wifi-router
 ```
 
 Then open Claude Code on a computer connected to your home Wi-Fi, attach a photo of your router (cover the password sticker) and ask:
@@ -41,7 +41,7 @@ Works on most routers with a web admin page. App-only routers (eero, Google Nest
 ## How to fix your privacy
 
 1. Change the admin password from the one on the sticker
-2. Turn on encrypted DNS: Private DNS on Android, secure DNS in Chrome or Firefox, DNS encryption on Windows 11, the free [1.1.1.1 app](https://one.one.one.one/) on iPhone and Mac. Your provider stops seeing your lookups
+2. Turn on encrypted DNS: Private DNS on Android, secure DNS in Chrome or Firefox, DNS encryption on Windows 11, the free [1.1.1.1 app](https://one.one.one.one) on iPhone and Mac. Your provider stops seeing your lookups
 3. Turn on Private Wi-Fi Address on your phone. It stops showing its real ID to every router
 4. Add `_nomap` to the end of your Wi-Fi name. [Apple](https://support.apple.com/en-us/102515) and [Google](https://support.google.com/maps/answer/1725632) stop adding it to their location maps
 5. Change your Wi-Fi password if your router remembers devices you don't recognize

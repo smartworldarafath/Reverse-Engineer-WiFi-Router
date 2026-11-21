@@ -1,127 +1,67 @@
 #!/usr/bin/env python3
+"""Mask private details in any command output before it goes on screen.
+
+Usage: some-command | python3 scripts/mask.py
+
+Masks: public IPv4 (keeps the first two parts), IPv6, the second half of
+MAC addresses, Windows PC names, and the value of any serial number, Wi-Fi
+name (SSID), BSSID or password field, in plain text, JSON or XML output.
+Keeps home-network addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x),
+well-known public resolvers and carrier-grade NAT prefixes readable.
 """
-mask.py - Data sanitizer for Wi-Fi router audit outputs.
-
-Masks sensitive identifiers in logs, tables, and terminal outputs:
-- Public IPv4 and IPv6 addresses
-- MAC addresses (masks the second half: 00:11:22:XX:XX:XX)
-- Hardware serial numbers
-- Wi-Fi network names (SSIDs)
-- Wi-Fi / admin passwords
-
-Usage:
-    python scripts/mask.py < input.log
-    cat output.txt | python scripts/mask.py
-    python scripts/mask.py input.txt [output.txt]
-    python scripts/mask.py --ssid "MyHomeWiFi" < input.txt
-"""
-
-import sys
-import re
-import argparse
 import ipaddress
+import re
+import sys
 
-# Matches IPv4 address
-IPV4_REGEX = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+KEEP = {"1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "127.0.0.1"}
+CGNAT = ipaddress.ip_network("100.64.0.0/10")
 
-# Matches MAC address (colon or hyphen separated)
-MAC_REGEX = re.compile(
-    r'\b([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})[:-]([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})\b'
-)
-
-# Common serial number patterns (e.g. SN: ABC1234567, SerialNumber: ...)
-SERIAL_REGEX = re.compile(
-    r'(?i)\b(serial(?:_no|number)?|sn|s/n)[\s:=]+([A-Za-z0-9_-]{6,30})\b'
-)
-
-# Password keys in JSON or key-value outputs
-PASS_REGEX = re.compile(
-    r'(?i)(password|passphrase|wpa_key|psk|secret)[\s:=]+["\']?([^"\'\s,;]+)["\']?'
-)
+IPV4 = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
+MAC = re.compile(r"\b([0-9A-Fa-f]{2})([:-])([0-9A-Fa-f]{2})\2([0-9A-Fa-f]{2})\2[0-9A-Fa-f]{2}\2[0-9A-Fa-f]{2}\2[0-9A-Fa-f]{2}\b")
+IPV6_CANDIDATE = re.compile(r"(?<![0-9A-Za-z:*])[0-9A-Fa-f]*:[0-9A-Fa-f:]*:[0-9A-Fa-f.]*(?:%\w+)?(?![0-9A-Za-z:*])")
+KEYS = r"(?:serial|e?ssid|bssid|passphrase|password|passwd|psk|wpa_?key|wi-?fi[ _]?name|network[ _]?name)\w*"
+SECRET_XML = re.compile(rf"(<\s*{KEYS}[^>]*>)([^<]+)", re.I)
+SECRET_QUOTED = re.compile(rf"({KEYS}[\"\']?\s*[:=]\s*)([\"\'])(.*?)\2", re.I)
+SECRET_PLAIN = re.compile(rf"({KEYS}[\"\']?\s*[:=]\s*)(?![\"\'*\s])([^,;}}\]<\r\n]+)", re.I)
+PC_NAME = re.compile(r"\b(DESKTOP|LAPTOP)-[A-Z0-9]{4,}\b", re.I)
 
 
-def is_private_ip(ip_str):
+def mask_ipv4(m):
+    text = m.group(0)
     try:
-        ip = ipaddress.ip_address(ip_str)
-        return ip.is_private or ip.is_loopback or ip.is_link_local
+        ip = ipaddress.ip_address(text)
     except ValueError:
-        return False
-
-
-def mask_ipv4(match):
-    ip_str = match.group(0)
-    if is_private_ip(ip_str):
-        # Keep local router IPs like 192.168.1.1 or 10.0.0.1 recognizable
-        return ip_str
-    # Mask public IP
-    parts = ip_str.split('.')
-    return f"{parts[0]}.{parts[1]}.xxx.xxx"
-
-
-def mask_mac(match):
-    # Keep the first 3 octets (OUI / Manufacturer) and mask the device-specific half
-    prefix = match.group(1)
-    sep = prefix[2]
-    return f"{prefix}{sep}XX{sep}XX{sep}XX"
-
-
-def mask_serial(match):
-    label = match.group(1)
-    val = match.group(2)
-    masked_val = val[:2] + ("*" * (len(val) - 2))
-    return f"{label}: {masked_val}"
-
-
-def mask_passwords(match):
-    key = match.group(1)
-    return f"{key}: [REDACTED]"
-
-
-def sanitize_text(text, custom_ssids=None):
-    # 1. Mask passwords
-    text = PASS_REGEX.sub(mask_passwords, text)
-    
-    # 2. Mask serial numbers
-    text = SERIAL_REGEX.sub(mask_serial, text)
-    
-    # 3. Mask MAC addresses (second half)
-    text = MAC_REGEX.sub(mask_mac, text)
-    
-    # 4. Mask public IPs
-    text = IPV4_REGEX.sub(mask_ipv4, text)
-    
-    # 5. Mask custom SSIDs if provided
-    if custom_ssids:
-        for ssid in custom_ssids:
-            if ssid and len(ssid.strip()) > 1:
-                text = re.sub(re.escape(ssid.strip()), "[MASKED_SSID]", text, flags=re.IGNORECASE)
-                
+        return text
+    if text in KEEP or ip.is_private or ip.is_loopback or ip.is_link_local:
+        return text
+    if ip in CGNAT or ip.is_global:
+        return f"{m.group(1)}.{m.group(2)}.x.x"
     return text
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Sanitize diagnostic output by masking sensitive details.")
-    parser.add_argument("input_file", nargs="?", help="Input file (defaults to stdin if omitted)")
-    parser.add_argument("output_file", nargs="?", help="Output file (defaults to stdout if omitted)")
-    parser.add_argument("--ssid", action="append", help="Specific SSID(s) to redact")
-    args = parser.parse_args()
+def mask_ipv6(m):
+    text = m.group(0)
+    try:
+        ip = ipaddress.ip_address(text.split("%")[0])
+    except ValueError:
+        return text
+    if ip.version != 6 or ip.is_loopback:
+        return text
+    return "xxxx:xxxx::xxxx"
 
-    custom_ssids = args.ssid or []
 
-    if args.input_file and args.input_file != "-":
-        with open(args.input_file, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-    else:
-        content = sys.stdin.read()
-
-    sanitized = sanitize_text(content, custom_ssids=custom_ssids)
-
-    if args.output_file:
-        with open(args.output_file, "w", encoding="utf-8") as f:
-            f.write(sanitized)
-    else:
-        sys.stdout.write(sanitized)
+def mask_line(line):
+    line = SECRET_XML.sub(lambda m: f"{m.group(1)}****", line)
+    line = SECRET_QUOTED.sub(lambda m: f"{m.group(1)}{m.group(2)}****{m.group(2)}", line)
+    line = SECRET_PLAIN.sub(lambda m: f"{m.group(1)}****", line)
+    line = PC_NAME.sub(lambda m: f"{m.group(1)}-****", line)
+    line = MAC.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(2)}{m.group(4)}{m.group(2)}**{m.group(2)}**{m.group(2)}**", line)
+    line = IPV6_CANDIDATE.sub(mask_ipv6, line)
+    line = IPV4.sub(mask_ipv4, line)
+    return line
 
 
 if __name__ == "__main__":
-    main()
+    for raw in sys.stdin:
+        sys.stdout.write(mask_line(raw))
+        sys.stdout.flush()

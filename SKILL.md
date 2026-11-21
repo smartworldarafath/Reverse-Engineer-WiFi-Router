@@ -1,86 +1,77 @@
 ---
 name: reverse-engineer-wifi-router
-description: Reverse-engineer your home Wi-Fi router's admin API using a photo of the router to perform privacy audits or optimize/fix slow Wi-Fi.
-version: 1.0.0
+description: Reverse-engineer your own home Wi-Fi router from one photo. Two jobs - a read-only privacy check (every device it remembers, what your internet provider can see and reach through TR-069 and DNS, firmware age, logs, how to fix it) and a slow Wi-Fi fix (backup, speed test, fixes only after your yes, chat control). Use when someone asks what their router knows about them, about router privacy or ISP remote access, or says their Wi-Fi is slow.
 ---
 
-# Reverse-Engineer Wi-Fi Router
+# Reverse-engineer your Wi-Fi router
 
-Reverse-engineer a home Wi-Fi router's administration interface using a single photo of the router. This skill works out the router's web API and performs either a privacy audit or slow Wi-Fi diagnostics and resolution.
+Work only on the user's own router and home network. Start from the photo they attach.
 
-## Core Rules & Safety Guardrails
+Pick the job from what they ask:
+- "what does my router know", privacy, provider, TR-069: **Job 1, privacy check** (read-only)
+- slow Wi-Fi, lag, drops, "control my router": **Job 2, fix slow Wi-Fi**
+- not sure: ask which one, or do Job 1 first
 
-- **Local Network Only**: Strictly operate on the user's currently connected local subnet (e.g. `192.168.1.0/24`, `192.168.0.0/24`). Never execute scans, connections, or packets targeting public external IPs or WAN addresses.
-- **No Exploits / No Password Guessing**: Do not perform brute-force dictionary attacks or exploit known CVEs. Use legitimate local HTTP/HTTPS/JSON/CGI admin endpoints.
-- **Zero Chat Credential Leakage**:
-  - NEVER ask the user to type router credentials or passwords into the chat.
-  - NEVER print plaintext passwords or credentials in the chat output.
-  - Always generate a local system command to store and retrieve the router admin password securely using native system keystores:
-    - **macOS**: `security add-generic-password -s "wifi-router-admin" -a "admin" -w "<password>"` and `security find-generic-password -s "wifi-router-admin" -w`
-    - **Linux**: `secret-tool store --label="wifi-router-admin" service wifi-router-admin username admin` and `secret-tool lookup service wifi-router-admin username admin`
-    - **Windows**: Use Windows Credential Manager or DPAPI via PowerShell (`cmdkey /generic:wifi-router-admin /user:admin /pass:...`).
-- **Data Masking**: Always sanitize output before displaying it. Run or apply `scripts/mask.py` to mask public IP addresses, the second half of MAC addresses (`XX:XX:XX:__:__:__`), hardware serial numbers, and Wi-Fi SSIDs.
-- **User Confirmation Required for Changes**:
-  - Job 1 (Privacy Check) is strictly **READ-ONLY**.
-  - Job 2 (Fix Slow Wi-Fi) requires explicit user confirmation before applying any setting change or reboot.
+## Rules for both jobs
 
----
+- If the photo shows a password, never repeat or save it.
+- Password: give the user one terminal command that saves the admin password to the system password store (macOS Keychain, Windows Credential Manager, Linux secret-tool) and read it from there. Never ask for it in chat, never print passwords, tokens or cookies. If login fails once, stop and ask.
+- Never guess or brute-force passwords, never use exploits, no telnet/ssh attempts, no port scans. Nothing outside the home network except DNS, whois, traceroute and speed tests.
+- Never change the Wi-Fi name or passwords, reboot without asking, update firmware or reset.
+- Pipe anything you show through `scripts/mask.py` so public IPs, the second half of MAC addresses, serial numbers and the Wi-Fi name are masked.
+- Report only what you observed. Mark anything inferred as inferred.
 
-## Workflow 1: Privacy Check (Read-Only)
+## Getting in (both jobs)
 
-Triggered by questions like:
-- *"What does my router know about me?"*
-- *"Audit my router privacy"*
-- *"Check what my ISP can see"*
+1. From the photo: brand, model, and whether it's an ISP-branded box. Find the gateway address (`route -n get default` on macOS, `ip route` on Linux, `ipconfig` on Windows). If the router is app-only (eero, Google Nest, some Deco), say what the app can show and do what you can from the computer.
+2. Don't stop at the first wall. Try an official API, an open-source library or Home Assistant integration for this model, or the admin page's own JavaScript API. Home router panels almost never have a public API: read the login page and its JavaScript to learn the login flow (tokens, hashing, cookies), then list the pages and internal requests (ajax, cgi, json, asp) it uses to load data. If login needs a captcha or the provider's account, open a browser and let the user log in. If the provider hides settings, tell the user where to unlock them.
+3. Save a short map of what you found to `~/router/api-map.md`.
 
-### Step 1: Device Identification
-1. Ask the user for a photo of the physical router (instructing them to cover any Wi-Fi password stickers).
-2. Identify brand, model number, hardware revision, FCC ID, and default gateway IP (typically `192.168.1.1` or `192.168.0.1`).
-3. If an app-only system (e.g. eero, Google Nest) is detected without a web interface, provide a curated network-level inspection summary.
+## Job 1: privacy check (read-only)
 
-### Step 2: Gateway Discovery & Authentication Setup
-1. Identify the default gateway IP using `ip route`, `netstat -rn`, or `ipconfig`.
-2. Probe local web endpoints (`/`, `/login.html`, `/api/`, `/cgi-bin/`) to discover API structure (REST JSON endpoints, CGI forms, or LuCI/OpenWrt RPC).
-3. If credentials are required, provide the one-line system keystore command so the password is saved locally and retrieved via environment variable or script.
+Change nothing. If seeing something needs a setting switched (for example a log type dropdown), ask first, note the old value and switch it back afterwards.
 
-### Step 3: Read-Only Data Extraction
-Collect the following points without altering any configuration:
-1. **Device History & Inventory**: Query DHCP lease tables, ARP tables, and historical device lists.
-2. **ISP Remote Management (TR-069 / CWMP)**: Check if connection/WAN profiles contain `TR069`, `CWMP`, `ACS`, or active remote support tunnels managed by the ISP.
-3. **Firmware & Update Visibility**: Check running firmware version, build date, and whether automatic/user updates are disabled by the ISP.
-4. **DNS Configuration & Leaks**: Check upstream DNS servers assigned via DHCP/WAN. Run `scripts/dns-check.sh` to determine which provider answers queries.
-5. **Logs & Telemetry**: Inspect system logs for connection timestamps, login events, and outbound vendor/telemetry reporting.
+Collect from the router:
+- every device it remembers (online and offline), names, and how many use private (randomized) MAC addresses (locally administered bit set)
+- internet (WAN) connection names and any sign of provider remote management: TR-069, CWMP, ACS, "management server" pages, connection names like `TR069_INTERNET`
+- firmware version, build date, and whether the user has any update or config backup page
+- DNS servers the router hands out, and who owns them (`whois`)
+- UPnP on or off, and any automatic port mappings
+- which logs exist, whether they have timestamps, and what kinds of events they record (summarize, never dump whole logs)
 
-### Step 4: Summary Report
-Format the findings into three clean, actionable sections:
-1. **What your router knows**: Count of remembered devices, connected device details, logs retained.
-2. **What your provider can see & reach**: TR-069 status, DNS query exposure, remote access channels.
-3. **How to fix it**: Step-by-step guidance on changing default admin passwords, enabling Encrypted DNS (DoH/DoT), enabling Private MAC addresses, appending `_nomap` to Wi-Fi SSID, and rotating Wi-Fi passwords.
+Check from this computer:
+- `scripts/dns-check.sh`: which company answers this computer's DNS lookups (on Windows without bash: `nslookup whoami.akamai.net`, then `whois` or an online lookup of the address it returns)
+- `traceroute -m 4 1.1.1.1` (`tracert -h 4 1.1.1.1` on Windows): the first hop after the router is the provider's network; `100.64.0.0/10` means carrier-grade NAT
 
----
+Optional, only if the user says yes: an Android TV / Google TV box on the same network with ADB debugging on. Read per-app network usage with `adb shell dumpsys netstats`, map UIDs to packages with `adb shell cmd package list packages -U`, and point out provider apps that send data while the TV is asleep. Read-only.
 
-## Workflow 2: Fix Slow Wi-Fi
+Report with three headings: **What my router knows**, **What my provider can see**, **How to fix it**. Keep it honest:
+- A home router does not store browsing history. The provider sees the sites you look up because DNS goes through it by default.
+- TR-069 means the provider *can* remotely read and change the router. Don't claim it is spying.
+- Encrypted DNS hides DNS lookups from the provider, not which servers you connect to. Only a VPN hides that.
 
-Triggered by queries like:
-- *"My Wi-Fi is slow, fix it"*
-- *"Why is my internet laggy?"*
-- *"Optimize my router channel"*
+Fix steps (official sources, ask before changing anything):
+- Encrypted DNS: Android Settings > Network & internet > Private DNS (https://support.google.com/android/answer/9654714); Chrome Settings > Privacy and security > Security > Use secure DNS (https://support.google.com/chrome/answer/10468685); Firefox Settings > Privacy & Security > DNS over HTTPS (https://support.mozilla.org/kb/dns-over-https); Windows 11 DNS encryption (https://learn.microsoft.com/windows-server/networking/dns/doh-client-support); iPhone and Mac have no built-in switch, use Cloudflare's free 1.1.1.1 app in DNS-only mode (https://one.one.one.one). Run `scripts/dns-check.sh` again after.
+- Private Wi-Fi Address on phones (iPhone: Settings > Wi-Fi > (i); Android: Wi-Fi network > Privacy > randomized MAC).
+- Add `_nomap` to the end of the Wi-Fi name so Apple (https://support.apple.com/en-us/102515) and Google (https://support.google.com/maps/answer/1725632) stop adding it to their location databases. It doesn't work for hidden networks, and neither company says it deletes existing entries. Renaming is the user's own step: never change the Wi-Fi name yourself.
+- Change the admin password from the one on the sticker.
+- Change the Wi-Fi password if the router remembers devices the user doesn't recognize.
 
-### Step 1: Diagnostics
-1. Check signal strength (RSSI), current band (2.4 GHz vs 5 GHz / 6 GHz), and channel width.
-2. Scan neighboring Wi-Fi networks to identify co-channel and adjacent-channel interference.
-3. Inspect active client count and bandwidth usage to locate high-traffic background devices.
-4. Check router CPU/memory load and WAN port link negotiation speed (e.g. 100 Mbps vs 1000 Mbps).
+## Job 2: fix slow Wi-Fi
 
-### Step 2: Identification & Proposed Fixes
-Identify the specific bottleneck:
-- Congested 2.4 GHz channel (propose switching to 5 GHz or changing channel to 1, 6, or 11).
-- Suboptimal channel width (e.g. 20 MHz vs 40/80 MHz).
-- Co-channel interference from nearby access points.
-- ISP/WAN negotiation or DNS resolution latency.
+If the user says "just diagnose", change nothing.
 
-### Step 3: Authorization & Controlled Execution
-1. Present the diagnosis and the exact proposed setting modification to the user.
-2. **Wait for explicit user confirmation** before issuing any change.
-3. Apply the authorized setting via the router's local API.
-4. Re-verify connectivity and latency after application.
+Done means:
+- all router settings backed up in a `router` folder in the user's home folder
+- a speed test before and after (including lag under load)
+- each fix applied only after the user's yes
+- a small tool so the user can ask in chat "who's on my Wi-Fi" or "reboot the router"
+- a report: before X Mbps vs after Y Mbps, what changed, how to undo it
+
+Check every Wi-Fi setting against the best the router allows: band, channel and neighbors on it, width, mode, power, band steering.
+
+Wi-Fi settings only. Show the old and new value before each change. If a form resends the Wi-Fi password, keep it unchanged, and read every value back after a change.
+
+If the router can't be changed, fix what you can on the computer and write the exact message to send the provider.
+
+End with: **Fixed**, **How to undo**, **What I need from you**.

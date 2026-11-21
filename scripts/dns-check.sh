@@ -1,72 +1,24 @@
 #!/usr/bin/env bash
-#
-# dns-check.sh - Check which provider answers your DNS lookups
-#
-# Usage:
-#   ./scripts/dns-check.sh
-#
+# Which company answers your DNS lookups? Run it before and after you turn on
+# encrypted DNS. whoami.akamai.net replies with the address of the resolver
+# that asked for it, so the owner of that address is who sees your lookups.
+set -u
 
-set -e
-
-echo "=== DNS Resolution Provider Check ==="
-echo ""
-
-# 1. Check local resolver IP from system configuration
-echo "[1/3] System DNS Resolver:"
-if [ -f /etc/resolv.conf ]; then
-    grep "nameserver" /etc/resolv.conf | awk '{print "  -> " $2}'
-elif command -v scutil >/dev/null 2>&1; then
-    scutil --dns | grep "nameserver\[0\]" | awk '{print "  -> " $3}' | sort -u
-elif command -v powershell.exe >/dev/null 2>&1; then
-    powershell.exe -NoProfile -Command "Get-DnsClientServerAddress -AddressFamily IPv4 | Select-Object -ExpandProperty ServerAddresses" | while read -r line; do
-        [ -n "$line" ] && echo "  -> $line"
-    done
-else
-    echo "  -> Could not determine system resolver."
-fi
-echo ""
-
-# 2. Perform test query to detect external resolver identity
-echo "[2/3] Querying DNS Resolver Identity..."
-RESOLVER_IP=""
-
-# Try Cloudflare whoami
+ip=""
 if command -v dig >/dev/null 2>&1; then
-    RESOLVER_IP=$(dig +short @1.1.1.1 whoami.cloudflare ch txt 2>/dev/null | tr -d '"')
-elif command -v nslookup >/dev/null 2>&1; then
-    RESOLVER_IP=$(nslookup -type=txt whoami.cloudflare 1.1.1.1 2>/dev/null | grep -i "text =" | awk -F'=' '{print $2}' | tr -d ' "\r\n')
+  ip=$(dig +short whoami.akamai.net 2>/dev/null | grep -E '^[0-9.]+$' | tail -1)
+fi
+if [ -z "$ip" ] && command -v nslookup >/dev/null 2>&1; then
+  ip=$(nslookup whoami.akamai.net 2>/dev/null | awk '/^Name:/ {found=1} found && /^Address/ {print $2}' | tail -1)
+fi
+if [ -z "$ip" ]; then
+  echo "Could not resolve whoami.akamai.net"
+  exit 1
 fi
 
-# Fallback: check whoami.akamai.net
-if [ -z "$RESOLVER_IP" ]; then
-    if command -v dig >/dev/null 2>&1; then
-        RESOLVER_IP=$(dig +short whoami.akamai.net 2>/dev/null)
-    elif command -v nslookup >/dev/null 2>&1; then
-        RESOLVER_IP=$(nslookup whoami.akamai.net 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | tr -d '\r\n')
-    fi
-fi
-
-if [ -n "$RESOLVER_IP" ]; then
-    echo "  -> Outgoing DNS Resolver IP: $RESOLVER_IP"
+echo "Your DNS lookups are answered by: $(echo "$ip" | awk -F. '{print $1"."$2".x.x"}')"
+if command -v whois >/dev/null 2>&1; then
+  whois "$ip" 2>/dev/null | grep -iE '^(orgname|org-name|organization|descr|netname|owner):' | head -3
 else
-    echo "  -> Could not retrieve outgoing resolver IP."
+  echo "(install whois to see which company owns it)"
 fi
-echo ""
-
-# 3. Lookup ASN / Organization of resolver
-echo "[3/3] Resolver Organization / ISP:"
-if [ -n "$RESOLVER_IP" ]; then
-    ORG=$(curl -s --max-time 5 "https://ipinfo.io/${RESOLVER_IP}/org" 2>/dev/null || true)
-    if [ -n "$ORG" ]; then
-        echo "  -> Organization: $ORG"
-    else
-        echo "  -> Lookup failed or connection timed out."
-    fi
-else
-    echo "  -> Skipped (no resolver IP identified)."
-fi
-
-echo ""
-echo "=== Check Complete ==="
-echo "Note: If Organization shows your local ISP, your queries are exposed in plain text."
-echo "If Organization shows Cloudflare, Google, Quad9, or NextDNS, DNS encryption is active."
