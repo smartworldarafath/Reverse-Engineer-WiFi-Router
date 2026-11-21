@@ -2,16 +2,16 @@
 
 # Reverse Engineering Wi-Fi Router
 
-### Comprehensive Framework for Reverse Engineering Wi-Fi Router Firmware, Admin APIs, TR-069 Telemetry, and Wireless Security Architecture
+### The Definitive Technical Framework for Reverse Engineering Wi-Fi Router Hardware, Firmware, Administrative APIs, TR-069 ACS Telemetry, and Embedded MIPS/ARM Daemons
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Platform: Claude Code](https://img.shields.io/badge/Platform-Claude%20Code-5A32A3.svg?style=flat-square)](SKILL.md)
 [![Scope: Local Subnet Only](https://img.shields.io/badge/Scope-Local%20Subnet%20Only-2ea44f.svg?style=flat-square)](#security-and-zero-leakage-architecture)
 [![Interface: CLI and Prompts](https://img.shields.io/badge/Interface-CLI%20%26%20Prompts-informational.svg?style=flat-square)](#deployment-and-usage-protocols)
-[![Topic: Router Reverse Engineering](https://img.shields.io/badge/Topic-Reverse%20Engineering%20Wi--Fi%20Router-orange.svg?style=flat-square)](https://github.com/smartworldarafath/Reverse-Engineer-WiFi-Router)
+[![Category: Reverse Engineering Wi-Fi Router](https://img.shields.io/badge/Category-Reverse%20Engineering%20Wi--Fi%20Router-orange.svg?style=flat-square)](https://github.com/smartworldarafath/Reverse-Engineer-WiFi-Router)
 
 <p align="center">
-  A disciplined open-source security engineering framework and autonomous agent skill dedicated to reverse engineering Wi-Fi router systems, discovering undocumented administrative endpoints, auditing carrier TR-069 ACS telemetry channels, and eliminating wireless performance bottlenecks strictly within local operational boundaries.
+  An authoritative, open-source security engineering framework and autonomous agent skill dedicated to reverse engineering Wi-Fi router systems. Covers physical UART/JTAG pinout discovery, SPI flash extraction, firmware file system carving (Binwalk), static binary decompilation (Ghidra/IDA), dynamic QEMU emulation, administrative web API reverse engineering, and carrier TR-069 ACS telemetry audits.
 </p>
 
 </div>
@@ -20,11 +20,15 @@
 
 ## Executive Summary
 
-**Reverse Engineering Wi-Fi Router** (`Reverse-Engineer-WiFi-Router`) is an authoritative technical specification, Claude Code agent skill, and defensive security toolkit. It is engineered for security researchers, network engineers, and system administrators seeking to reverse engineer Wi-Fi router hardware, firmware architectures, and internal communication protocols without damaging equipment or violating operational boundaries.
+**Reverse Engineering Wi-Fi Router** (`Reverse-Engineer-WiFi-Router`) is an open-source technical specification, security audit framework, and autonomous agent skill. Designed for security researchers, embedded engineers, and penetration testers, this repository consolidates the entire lifecycle of reverse engineering Wi-Fi router devices:
 
-Consumer Customer Premises Equipment (CPE) -- including Wi-Fi routers, broadband gateways, and optical network terminals (ONTs) -- forms the crucial defensive perimeter between private local area networks (LANs) and public wide area networks (WANs). However, most consumer gateways operate proprietary, closed-source firmware containing undocumented administrative endpoints, persistent ISP monitoring daemons, unencrypted DNS forwarders, and persistent client logging.
-
-This project provides a reproducible, step-by-step methodology for reverse engineering Wi-Fi router interfaces, mapping internal JSON-RPC and CGI APIs, inspecting carrier-level CWMP (TR-069/TR-369) management channels, and hardening wireless infrastructure.
+1. **Hardware-Level Analysis:** Interrogating printed circuit boards (PCBs), identifying System-on-Chip (SoC) architectures, locating UART serial debug headers, and dumping non-volatile SPI NOR/NAND flash memory chips using hardware programmers.
+2. **Firmware Extraction and Unpacking:** Carving root file systems (SquashFS, JFFS2, CramFS, UBIFS) from vendor binary images using Binwalk, unsquashfs, and custom extraction scripts.
+3. **Embedded Binary Decompilation:** Disassembling MIPS32 and ARM embedded network binaries (`httpd`, `uHTTPd`, `boa`, `dnsmasq`, `hostapd`, `cwmp`) in Ghidra, IDA Pro, and Rizin to discover hardcoded credentials, buffer overflow conditions, and hidden command-injection parameters.
+4. **Dynamic Emulation and Runtime Debugging:** Emulating router services across architectures using QEMU user-mode (`qemu-mips-static`, `qemu-arm-static`) and full-system emulators (Firmadyne, EMBA).
+5. **Administrative Web API Reverse Engineering:** Reconstructing client-side hashing routines (MD5 challenge-response, PBKDF2, AES tokens) and mapping undocumented REST, JSON-RPC (`/ubus`), and CGI endpoints without public documentation.
+6. **Carrier Telemetry and TR-069 Auditing:** Uncovering hidden Auto-Configuration Server (ACS) tunnels implementing the CPE WAN Management Protocol (TR-069 / TR-369 CWMP), tracking background telemetry leakage, and analyzing DNS exposure.
+7. **Defensive Hardening and OpenWrt Migration:** Hardening stock configurations and transitioning proprietary consumer gateways to auditable, open-source firmware distributions.
 
 ---
 
@@ -37,24 +41,38 @@ This project provides a reproducible, step-by-step methodology for reverse engin
   - [2. Unencrypted DNS Query Interception](#2-unencrypted-dns-query-interception)
   - [3. Geolocation Triangulation via BSSID Harvesting](#3-geolocation-triangulation-via-bssid-harvesting)
   - [4. UPnP Dynamic Port Mapping and IGD Traversal](#4-upnp-dynamic-port-mapping-and-igd-traversal)
-- [Step-by-Step Wi-Fi Router Reverse Engineering Methodology](#step-by-step-wi-fi-router-reverse-engineering-methodology)
-  - [Phase 1: Hardware Identification and SoC Profiling](#phase-1-hardware-identification-and-soc-profiling)
-  - [Phase 2: Gateway Discovery and Subnet Enumeration](#phase-2-gateway-discovery-and-subnet-enumeration)
-  - [Phase 3: Administrative Web Surface Reverse Engineering](#phase-3-administrative-web-surface-reverse-engineering)
-  - [Phase 4: Undocumented API Endpoint Mapping](#phase-4-undocumented-api-endpoint-mapping)
+- [Phase 1: Hardware-Level Wi-Fi Router Reverse Engineering](#phase-1-hardware-level-wi-fi-router-reverse-engineering)
+  - [Visual PCB Triage and Component Identification](#visual-pcb-triage-and-component-identification)
+  - [UART Serial Pinout Detection and Console Access](#uart-serial-pinout-detection-and-console-access)
+  - [Direct SPI NOR/NAND Flash Dumping via CH341A](#direct-spi-nornand-flash-dumping-via-ch341a)
+- [Phase 2: Firmware Acquisition and File System Extraction](#phase-2-firmware-acquisition-and-file-system-extraction)
+  - [Firmware Acquisition Strategies](#firmware-acquisition-strategies)
+  - [Static Firmware Carving with Binwalk](#static-firmware-carving-with-binwalk)
+  - [Manual File System Extraction: SquashFS and JFFS2](#manual-file-system-extraction-squashfs-and-jffs2)
+- [Phase 3: Embedded Binary Disassembly and Vulnerability Research](#phase-3-embedded-binary-disassembly-and-vulnerability-research)
+  - [Identifying Target Architecture (MIPS / ARM)](#identifying-target-architecture-mips--arm)
+  - [Decompiling HTTP Daemons in Ghidra](#decompiling-http-daemons-in-ghidra)
+  - [Auditing Common Vulnerability Patterns](#auditing-common-vulnerability-patterns)
+- [Phase 4: Dynamic Emulation and Runtime Debugging](#phase-4-dynamic-emulation-and-runtime-debugging)
+  - [User-Mode Emulation with QEMU](#user-mode-emulation-with-qemu)
+  - [Full-System Firmware Emulation with Firmadyne](#full-system-firmware-emulation-with-firmadyne)
+  - [System Call Tracing with strace and gdbserver](#system-call-tracing-with-strace-and-gdbserver)
+- [Phase 5: Administrative Web API Reverse Engineering](#phase-5-administrative-web-api-reverse-engineering)
+  - [Authentication Protocol Deconstruction](#authentication-protocol-deconstruction)
+  - [Endpoint Mapping: JSON-RPC, ubus, and CGI](#endpoint-mapping-json-rpc-ubus-and-cgi)
+  - [Automating API Queries Without Credential Exposure](#automating-api-queries-without-credential-exposure)
+- [Phase 6: Carrier Management and Telemetry Auditing (TR-069)](#phase-6-carrier-management-and-telemetry-auditing-tr-069)
+  - [Deconstructing TR-069 CWMP Operations](#deconstructing-tr-069-cwmp-operations)
+  - [Empirical Telemetry Case Study](#empirical-telemetry-case-study)
 - [Operational Workflows](#operational-workflows)
   - [Workflow 1: Read-Only Privacy and Telemetry Audit](#workflow-1-read-only-privacy-and-telemetry-audit)
   - [Workflow 2: Wireless Performance Optimization](#workflow-2-wireless-performance-optimization)
 - [Security and Zero-Leakage Architecture](#security-and-zero-leakage-architecture)
-  - [Local Keyring Integration](#local-keyring-integration)
-  - [Real-Time Stream Masking](#real-time-stream-masking)
-- [Empirical Case Study: Consumer Gateway Telemetry Audit](#empirical-case-study-consumer-gateway-telemetry-audit)
-- [Deployment and Usage Protocols](#deployment-and-usage-protocols)
-  - [Claude Code Agent Skill Installation](#claude-code-agent-skill-installation)
-  - [Standalone Technical Prompts](#standalone-technical-prompts)
+  - [Local Keyring Credential Protection](#local-keyring-credential-protection)
+  - [Deterministic Stream Masking (scripts/mask.py)](#deterministic-stream-masking-scriptsmaskpy)
 - [Diagnostic Utilities Reference](#diagnostic-utilities-reference)
-  - [DNS Resolution Verifier: scripts/dns-check.sh](#dns-resolution-verifier-scriptsdns-checksh)
-  - [PII and Secret Sanitizer: scripts/mask.py](#pii-and-secret-sanitizer-scriptsmaskpy)
+  - [scripts/dns-check.sh](#scriptsdns-checksh)
+  - [scripts/mask.py](#scriptsmaskpy)
 - [CPE Hardening and Remediation Protocol](#cpe-hardening-and-remediation-protocol)
 - [Academic Research and Formal References](#academic-research-and-formal-references)
 - [Supported Hardware and Firmware Ecosystems](#supported-hardware-and-firmware-ecosystems)
@@ -66,10 +84,10 @@ This project provides a reproducible, step-by-step methodology for reverse engin
 
 ## Why Reverse Engineering Wi-Fi Router Gateways Matters
 
-Modern broadband gateways are embedded computers running variants of Linux (OpenWrt, BusyBox, LuCI, eCos, or proprietary vendor kernels). Despite their critical role in household and corporate security, they suffer from fundamental transparency issues:
+Modern broadband Customer Premises Equipment (CPE) devices are specialized embedded computers typically operating BusyBox Linux on MIPS or ARM microarchitectures. Despite sitting at the perimeter of corporate and home networks, consumer routers suffer from widespread operational opacity:
 
 1. **Undocumented Administrative APIs:** Web interfaces communicate with underlying daemons through undocumented HTTP POST endpoints, JSON-RPC endpoints, or legacy CGI routines. Reverse engineering Wi-Fi router web interfaces exposes these endpoints for automation and auditing.
-2. **Hidden ISP Telemetry Daemons:** Internet service providers routinely configure Auto-Configuration Server (ACS) daemons using the TR-069 / TR-369 protocol. These daemons maintain persistent connections to upstream ISP infrastructure, allowing remote configuration changes, telemetry extraction, and firmware updates without user knowledge.
+2. **Hidden Carrier Telemetry Daemons:** Internet service providers routinely configure Auto-Configuration Server (ACS) daemons using the TR-069 / TR-369 protocol. These daemons maintain persistent connections to upstream ISP infrastructure, allowing remote configuration changes, telemetry extraction, and firmware updates without user knowledge.
 3. **Pervasive DNS Tracking:** Most routers forward all local domain lookups in cleartext to ISP DNS servers, exposing every browsing session to passive eavesdropping.
 4. **Persistent Client Association History:** Many consumer routers record device MAC addresses, device hostnames, and connection timestamps permanently in local flash memory or volatile RAM tables.
 
@@ -130,38 +148,282 @@ Active Universal Plug and Play (UPnP) IGD daemons permit unauthenticated devices
 
 ---
 
-## Step-by-Step Wi-Fi Router Reverse Engineering Methodology
+## Phase 1: Hardware-Level Wi-Fi Router Reverse Engineering
 
-The framework utilizes a systematic, non-invasive methodology for reverse engineering Wi-Fi router devices:
+When software and network probing interfaces are restricted, hardware-level reverse engineering provides direct access to the device's operating environment and persistent storage.
 
-### Phase 1: Hardware Identification and SoC Profiling
-1. Examine external chassis design, antenna configuration, and port layout (with serial/credential stickers occluded).
-2. Cross-reference FCC ID records and hardware revision indicators to determine the internal System-on-Chip (SoC) family:
-   - Broadcom (BCM series)
-   - MediaTek / Ralink (MT76xx series)
-   - Qualcomm Atheros (QCA series)
-   - Realtek (RTL series)
-3. Identify the base firmware family (OpenWrt derivative, Asuswrt, embedded proprietary RTOS).
+### Visual PCB Triage and Component Identification
+1. Remove outer enclosure screws (often concealed beneath rubber feet or warranty labels).
+2. Document all integrated circuit markings:
+   - **System on Chip (SoC):** Identifies CPU architecture, core frequency, and integrated radios (e.g., MediaTek MT7621AT, Broadcom BCM4709, Qualcomm Atheros IPQ4019, Realtek RTL8197F).
+   - **RAM Chip:** Determines memory bounds (e.g., Winbond, Nanya, or Samsung DDR2/DDR3 SDRAM).
+   - **Flash Memory:** Identifies non-volatile storage type and capacity (SPI NOR flash like Winbond 25Q128 [16MB] or NAND flash like ESMT [128MB]).
 
-### Phase 2: Gateway Discovery and Subnet Enumeration
-Identify the primary gateway interface on the active operating system:
-- **macOS:** `route -n get default`
-- **Linux:** `ip route show default`
-- **Windows:** `Get-NetRoute -DestinationPrefix '0.0.0.0/0'` or `ipconfig`
+### UART Serial Pinout Detection and Console Access
+Embedded router motherboards almost universally provide a 3-pin or 4-pin UART header used by factory technicians for kernel debugging.
 
-### Phase 3: Administrative Web Surface Reverse Engineering
-Inspect the HTTP/HTTPS management server listening on the gateway IP:
-- Analyze server response headers (`Server: mini_httpd`, `Server: uHTTPd`, `Server: lighttpd`).
-- Inspect the DOM tree and client-side JavaScript source of the login portal.
-- Deconstruct client-side authentication mechanisms (MD5 challenge-response, SHA-256 PBKDF2 iterations, AES token wrappers).
+```
+       [ Router Motherboard UART Header ]
+         (1) VCC   (2) TX   (3) RX   (4) GND
+          O         O        O        O
+```
 
-### Phase 4: Undocumented API Endpoint Mapping
-Identify hidden management endpoints:
-- Dynamic CGI dispatchers (`/cgi-bin/luci`, `/apply.cgi`, `/router_status.cgi`).
-- Asynchronous JSON-RPC channels (`/ubus`, `/api/v1/status`).
-- Dynamic script parameter reflection (`/asp/status.asp`, `/data/wan_info.json`).
+#### Locating UART Pins with a Multimeter:
+1. **Locate Ground (GND):** Set multimeter to continuity mode. Touch one probe to the router's Ethernet metal shielding and test each pin. The pin that beeps is **GND**.
+2. **Locate VCC (Power):** Set multimeter to DC voltage (20V). Power on the router. Measure voltage between GND and remaining pins. The pin reading steady **3.3V** or **5.0V** is **VCC** (do not connect this to your USB adapter).
+3. **Locate Transmit (TX):** Monitor remaining pins during boot. The pin fluctuating rapidly between 2.0V and 3.3V while the CPU outputs bootloader text is **TX**.
+4. **Locate Receive (RX):** The remaining non-voltage pin with slight resistance to ground is **RX**.
 
-The agent logs verified endpoints in a structured local mapping table for subsequent read-only auditing or performance optimization.
+#### Connecting Serial Interface:
+Connect a 3.3V USB-to-UART bridge (CP2102 or FT232RL):
+- Bridge GND -> Router GND
+- Bridge RX  -> Router TX
+- Bridge TX  -> Router RX
+
+Launch serial terminal session:
+```bash
+# Connect at standard baud rates (most commonly 115200 or 57600)
+picocom -b 115200 /dev/ttyUSB0
+# Or using screen
+screen /dev/ttyUSB0 115200
+```
+
+Upon power cycling the router, the U-Boot bootloader output appears, typically culminating in an unauthenticated BusyBox root shell (`#`).
+
+### Direct SPI NOR/NAND Flash Dumping via CH341A
+When UART is disabled in production firmware (`console=null` in kernel arguments), physical flash extraction captures the complete binary state:
+
+```bash
+# Test chip detection via CH341A USB programmer and SOIC-8 clip
+flashrom -p ch341a_spi
+
+# Dump raw firmware partition to local file
+flashrom -p ch341a_spi -r router_firmware_dump.bin
+
+# Verify dump integrity by reading a second copy and comparing checksums
+flashrom -p ch341a_spi -r router_firmware_dump2.bin
+sha256sum router_firmware_dump.bin router_firmware_dump2.bin
+```
+
+---
+
+## Phase 2: Firmware Acquisition and File System Extraction
+
+Firmware extraction is the process of decomposing a monolithic firmware binary into individual kernel, bootloader, configuration, and root file system components.
+
+### Firmware Acquisition Strategies
+1. **Manufacturer Support Download:** Download stock updates (`.bin`, `.trx`, `.img`) directly from vendor portals.
+2. **Network Interception of OTA Updates:** Sniff WAN traffic while triggering an over-the-air firmware update check via the router management UI.
+3. **Hardware SPI Extraction:** Read directly from flash memory using hardware clips.
+
+### Static Firmware Carving with Binwalk
+[Binwalk](https://github.com/ReFirmLabs/binwalk) is the industry-standard tool for static firmware analysis:
+
+```bash
+# Scan firmware for signatures (SquashFS, U-Boot, LZMA, CramFS)
+binwalk firmware.bin
+
+# Example Output:
+# DECIMAL       HEXADECIMAL     DESCRIPTION
+# --------------------------------------------------------------------------------
+# 0             0x0             TRX firmware header, little endian, image size: 16777216 bytes
+# 28            0x1C            LZMA compressed data, properties: 0x5D, dictionary size: 67108864
+# 1179648       0x120000        Squashfs filesystem, little endian, version 4.0, size: 14285714 bytes
+
+# Recursively extract all identified components
+binwalk -Me firmware.bin
+```
+
+### Manual File System Extraction: SquashFS and JFFS2
+If automated Binwalk carving fails due to proprietary headers or non-standard compression offsets:
+
+```bash
+# 1. Manually carve SquashFS partition using dd
+# Offset derived from binwalk scan (e.g., 0x120000 = 1179648)
+dd if=firmware.bin of=rootfs.squashfs bs=1 skip=1179648
+
+# 2. Extract using unsquashfs (or sasquatch for non-standard vendor LZMA)
+unsquashfs rootfs.squashfs
+
+# Extracted directory structure:
+# squashfs-root/
+# ├── bin/          (BusyBox symlinks, custom binaries)
+# ├── etc/          (Configuration files, init scripts, shadow passwords)
+# ├── sbin/         (Network daemons, iptables, ubus, netifd)
+# ├── usr/
+# │   └── sbin/     (httpd, dropbear, hostapd, dnsmasq, cwmp)
+# └── www/          (Web management files, HTML, JavaScript, Lua, CGI)
+```
+
+---
+
+## Phase 3: Embedded Binary Disassembly and Vulnerability Research
+
+Once the file system is unpacked, the next phase involves static analysis of proprietary network daemons responsible for administration and routing.
+
+### Identifying Target Architecture (MIPS / ARM)
+Check binary characteristics using standard utilities:
+
+```bash
+file squashfs-root/usr/sbin/httpd
+# Example: ELF 32-bit LSB executable, MIPS, MIPS32 version 1 (SYSV), dynamically linked
+
+readelf -h squashfs-root/usr/sbin/httpd
+```
+
+### Decompiling HTTP Daemons in Ghidra
+1. Launch Ghidra and create a new project.
+2. Import the extracted web server binary (`httpd`, `uHTTPd`, `boa`, or `mini_httpd`).
+3. Set language to:
+   - For MIPS Little Endian: `MIPS:32:default:little` (e.g., MediaTek MT7621)
+   - For MIPS Big Endian: `MIPS:32:default:big` (e.g., Atheros AR9344)
+   - For ARM Little Endian: `ARM:32:default:little:v7`
+4. Run auto-analysis with decompiler enabled.
+
+### Auditing Common Vulnerability Patterns
+Examine cross-references (`Xrefs`) to dangerous C functions:
+
+| Function | Associated Risk | Reverse Engineering Focus |
+| :--- | :--- | :--- |
+| `system()`, `popen()` | Command Injection | Trace input parameters back to HTTP GET/POST variables without validation. |
+| `strcpy()`, `sprintf()` | Buffer Overflow | Audit buffer allocations handling user-supplied cookies, hostnames, or passwords. |
+| `nvram_get()`, `uci_get()` | Configuration Exposure | Identify hidden configuration parameters read at runtime. |
+| `strcmp()`, `memcmp()` | Authentication Bypass | Audit hardcoded credentials and token comparison routines. |
+
+---
+
+## Phase 4: Dynamic Emulation and Runtime Debugging
+
+Dynamic analysis allows security researchers to execute router binaries without requiring the physical device.
+
+### User-Mode Emulation with QEMU
+Using QEMU user-mode static binaries and `chroot`, individual MIPS/ARM programs can be executed on x86_64 host machines:
+
+```bash
+# 1. Install static QEMU binaries
+sudo apt-get install qemu-user-static
+
+# 2. Copy matching architecture emulator into rootfs
+cp $(which qemu-mipsel-static) squashfs-root/usr/bin/
+
+# 3. Chroot into rootfs and execute binary under emulation
+sudo chroot squashfs-root /usr/bin/qemu-mipsel-static /usr/sbin/httpd -h
+```
+
+### Full-System Firmware Emulation with Firmadyne
+[Firmadyne](https://github.com/firmadyne/firmadyne) and [EMBA](https://github.com/e-m-b-a/emba) automate full system emulation:
+
+```bash
+# Extract and identify architecture
+./sources/extractor/extractor.py -b "Vendor" -sql "firmware.db" firmware.bin images/
+
+# Emulate network interfaces and launch QEMU system instance
+./scripts/run.sh 1
+```
+
+### System Call Tracing with strace and gdbserver
+Trace system calls dynamically to observe runtime file access, socket bindings, and inter-process communications:
+
+```bash
+# Run binary with strace inside chroot
+sudo chroot squashfs-root /usr/bin/qemu-mipsel-static -strace /usr/sbin/httpd
+
+# Remote debugging via gdbserver
+gdbserver :1234 /usr/sbin/httpd
+# From host:
+gdb-multiarch squashfs-root/usr/sbin/httpd -ex "target remote localhost:1234"
+```
+
+---
+
+## Phase 5: Administrative Web API Reverse Engineering
+
+Consumer gateways rarely supply public API documentation. Web reverse engineering maps internal administration interfaces for security evaluation and scripting.
+
+### Authentication Protocol Deconstruction
+Embedded routers commonly use multi-stage authentication schemes:
+
+1. **MD5 / SHA-256 Challenge-Response:** The client sends an initial GET request to retrieve a dynamic challenge salt. The password hash is computed as `MD5(username + ":" + salt + ":" + password)`.
+2. **PBKDF2 / AES Token Wrapping:** Modern routers encrypt payload forms client-side using JavaScript crypto libraries (`crypto-js`, `sjcl`) before transmission over HTTP.
+3. **Session State Verification:** Requests require transient session cookies (`sysauth`, `session_id`) combined with anti-CSRF request tokens (`stok`, `csrf_token`).
+
+### Endpoint Mapping: JSON-RPC, ubus, and CGI
+Reverse engineering client-side JavaScript (`/www/js/*.js`) reveals internal dispatch endpoints:
+
+```
++------------------------------------------------------------------------+
+|                          Web Management Layer                          |
++------------------------------------------------------------------------+
+                                    |
+            +-----------------------+-----------------------+
+            |                                               |
+            v                                               v
++-----------------------+                       +-----------------------+
+|  CGI Script Handlers  |                       | JSON-RPC Dispatchers  |
+|  - /cgi-bin/luci      |                       |  - /ubus              |
+|  - /apply.cgi         |                       |  - /api/v1/status     |
+|  - /router_status.cgi |                       |  - /data/wan_info.json|
++-----------------------+                       +-----------------------+
+            |                                               |
+            +-----------------------+-----------------------+
+                                    |
+                                    v
++------------------------------------------------------------------------+
+|                   Underlying IPC / UCI Daemon Layer                    |
++------------------------------------------------------------------------+
+```
+
+### Automating API Queries Without Credential Exposure
+Once endpoints are mapped, queries execute locally without exposing administrative credentials to remote systems:
+
+```bash
+# Example: Querying OpenWrt ubus interface for wireless association list
+curl -s -X POST "http://192.168.1.1/ubus" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "call",
+    "params": ["00000000000000000000000000000000", "iwinfo", "assoclist", {"device": "wlan0"}]
+  }' | python3 scripts/mask.py
+```
+
+---
+
+## Phase 6: Carrier Management and Telemetry Auditing (TR-069)
+
+Carrier-deployed gateways frequently harbor background remote management daemons that operate outside user control.
+
+### Deconstructing TR-069 CWMP Operations
+The CPE WAN Management Protocol (TR-069 / TR-369) enables Auto-Configuration Servers (ACS) to manage customer devices via SOAP/XML messages over HTTP/HTTPS:
+
+```
+[ Carrier Auto-Configuration Server (ACS) ]
+                     ^
+                     | SOAP/XML over HTTP/HTTPS (Port 7547 or WAN tunnel)
+                     v
+[ CPE Embedded CWMP Daemon (cwmp / acs_client) ]
+                     |
+  -------------------+-------------------
+  |                  |                  |
+  v                  v                  v
+[ Read WAN Config ] [ Dump ARP Cache ] [ Force Firmware Push ]
+```
+
+#### Key TR-069 Operations to Audit:
+- **`GetParameterValues`:** Upstream carrier queries local parameters (SSID passphrases, serial numbers, connected host inventory).
+- **`SetParameterValues`:** Carrier forces configuration overrides without local operator consent.
+- **`Download` / `ScheduleDownload`:** Carrier initiates binary firmware replacements automatically.
+
+### Empirical Telemetry Case Study
+Verified telemetry parameters captured during an audit of a consumer optical broadband gateway:
+
+| Parameter Key | Observed Value | Security Implication |
+| :--- | :--- | :--- |
+| **`InternetGatewayDevice.ManagementServer.URL`** | `http://acs.isp-domain.net:7547/` | Telemetry transported over unencrypted cleartext HTTP. |
+| **`InternetGatewayDevice.ManagementServer.PeriodicInformInterval`** | `86400` (Seconds) | Device checks into remote carrier server every 24 hours. |
+| **`InternetGatewayDevice.LANDevice.1.Hosts.HostNumberOfEntries`** | `29` | Device maintains historical inventory of 29 hardware clients. |
+| **`InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.DNSServers`** | `103.x.x.1, 103.x.x.2` | 100% of local DNS lookups routed unencrypted through ISP resolvers. |
 
 ---
 
@@ -200,11 +462,6 @@ This workflow conducts an exhaustive inspection of router privacy parameters wit
 |           Phase 4: Synthesis and Hardening Report Formulation         |
 +-----------------------------------------------------------------------+
 ```
-
-The output report delivers three actionable sections:
-1. **Internal Data Retention:** Device logs, stored hardware addresses, and connection history.
-2. **External Telemetry Exposure:** TR-069 management links, DNS leakage, and carrier control surfaces.
-3. **Remediation Plan:** Vendor-neutral hardening instructions for closing identified exposures.
 
 ---
 
@@ -259,15 +516,13 @@ To ensure sensitive network credentials and telemetry data are never exposed, th
 [ AI Context / User Display ]
 ```
 
-### Local Keyring Integration
+### Local Keyring Credential Protection
 Administrative credentials are never pasted into chat contexts. Instead, credentials reside in host OS secure keyrings:
 - **macOS:** `security add-generic-password -s "wifi-router-admin" -a "admin" -w "<password>"`
 - **Windows:** `cmdkey /generic:wifi-router-admin /user:admin /pass:"<password>"`
 - **Linux:** `secret-tool store --label="wifi-router-admin" service wifi-router-admin username admin`
 
-Local scripts read credentials dynamically via standard input pipes at runtime.
-
-### Real-Time Stream Masking
+### Deterministic Stream Masking (`scripts/mask.py`)
 All diagnostic streams pass through `scripts/mask.py` prior to display. The sanitization engine applies regex transformations to neutralize sensitive identifiers:
 
 | Identifier Type | Raw Input Example | Sanitized Output |
@@ -281,57 +536,10 @@ All diagnostic streams pass through `scripts/mask.py` prior to display. The sani
 
 ---
 
-## Empirical Case Study: Consumer Gateway Telemetry Audit
-
-The following table summarizes empirical parameters captured during a privacy audit of a tier-1 ISP fiber optical network terminal (ZTE / Huawei hybrid gateway platform):
-
-| Inspection Vector | Observed Gateway State | Privacy and Security Implication |
-| :--- | :--- | :--- |
-| **Primary WAN Interface** | `1_TR069_INTERNET_R_VID_10` | The primary data route is permanently multiplexed with an ACS management tunnel. |
-| **ACS Connection Status** | `PeriodicInform: Enabled (Interval: 86400s)` | The router transmits device parameters and network states to carrier servers daily. |
-| **Client Association History**| `29 Records (11 Active, 18 Disconnected)` | Complete client inventory persists indefinitely across soft reboots. |
-| **MAC Address Randomization** | `3 of 29 clients using Locally Administered bit` | 89.6% of connected endpoints expose their globally unique hardware addresses. |
-| **Recursive DNS Upstream** | `103.x.x.1, 103.x.x.2 (ISP Autonomous System)` | 100% of internal DNS resolutions transit unencrypted across the carrier network. |
-| **Firmware Maintenance** | `AutoUpdate: Enabled (User Manual Upload: Disabled)` | Device operator cannot audit, schedule, or restrict binary firmware updates. |
-| **UPnP Port Assignments** | `Teredo (UDP 54223), BitTorrent (TCP 6881)` | Internal services exposed external listening ports without manual administrative approval. |
-
----
-
-## Deployment and Usage Protocols
-
-### Claude Code Agent Skill Installation
-
-Install the repository as a global skill:
-
-```bash
-git clone https://github.com/smartworldarafath/Reverse-Engineer-WiFi-Router.git ~/.claude/skills/reverse-engineer-wifi-router
-```
-
-Connect your computer to the target Wi-Fi network, launch your AI agent, provide an image of the router chassis (covering serial stickers), and execute:
-
-```text
-what does my router know about me?
-```
-
-or
-
-```text
-my Wi-Fi is slow, fix it
-```
-
-### Standalone Technical Prompts
-
-If executing without local agent skill loaders, run the standalone prompts directly:
-- **Privacy Audit:** [`prompts/privacy-check.md`](prompts/privacy-check.md)
-- **Performance Optimization:** [`prompts/fix-slow-wifi.md`](prompts/fix-slow-wifi.md)
-
----
-
 ## Diagnostic Utilities Reference
 
-### DNS Resolution Verifier: `scripts/dns-check.sh`
-
-`dns-check.sh` interrogates authoritative Akamai verification resolvers to identify the upstream resolver handling workstation requests:
+### `scripts/dns-check.sh`
+Queries authoritative Akamai verification endpoints to determine the outward-facing public resolver handling host queries:
 
 ```bash
 #!/usr/bin/env bash
@@ -357,15 +565,14 @@ else
 fi
 ```
 
-### PII and Secret Sanitizer: `scripts/mask.py`
-
-`mask.py` is an automated stream sanitizer designed to neutralize PII, MAC addresses, public IP addresses, and session credentials before logs are rendered in terminal windows:
+### `scripts/mask.py`
+A streaming filter designed to redact PII, hardware identifiers, and session tokens from diagnostic logs:
 
 ```bash
-# Pipe any standard diagnostic command output
+# Pipe any command output through the sanitizer
 ipconfig /all | python3 scripts/mask.py
 
-# Pipe router JSON API status responses
+# Pipe router JSON status responses
 curl -s http://192.168.1.1/api/status | python3 scripts/mask.py
 ```
 
@@ -373,33 +580,13 @@ curl -s http://192.168.1.1/api/status | python3 scripts/mask.py
 
 ## CPE Hardening and Remediation Protocol
 
-Follow this structured remediation workflow to harden consumer router hardware:
-
-```
-[ Step 1: Credential Rotation ]
-Rotate factory admin credentials from default values to high-entropy passphrases.
-                 |
-                 v
-[ Step 2: Encrypted DNS (DoH/DoT) Activation ]
-Route host lookups through authenticated, encrypted resolvers (Cloudflare, Quad9).
-                 |
-                 v
-[ Step 3: Hardware Privacy Enforcement ]
-Activate MAC randomization on all mobile endpoints; isolate IoT appliances.
-                 |
-                 v
-[ Step 4: Geolocation Database Opt-Out ]
-Append '_nomap' to all operational 2.4 GHz, 5 GHz, and 6 GHz SSIDs.
-                 |
-                 v
-[ Step 5: Wireless Environment Optimization ]
-Migrate clients to 5 GHz; restrict 2.4 GHz to clean non-overlapping channels (1, 6, 11).
-```
+Once the diagnostic baseline is established, apply systematic remediation:
 
 1. **Encrypted DNS Configuration:** Deploy DNS-over-HTTPS (DoH) across endpoints (Android Private DNS, Windows 11 Encrypted DNS, iOS configuration profiles, Chrome/Firefox Secure DNS).
 2. **MAC Address Randomization:** Enable private MAC addressing on client operating systems to prevent permanent client tracking.
 3. **Geolocation Database Opt-Out (`_nomap`):** Append `_nomap` to all operational SSIDs to prevent Wi-Fi Positioning Systems from indexing your access point BSSID.
 4. **Channel and Band Isolation:** Restrict 2.4 GHz channels strictly to non-overlapping channels **1, 6, or 11** at **20 MHz** width. Migrate high-bandwidth devices to **5 GHz** or **6 GHz** at 80 MHz channel widths.
+5. **OpenWrt / Custom Firmware Flashing:** Where supported, replace proprietary OEM firmware with open-source distributions to achieve full transparency and control over background daemons.
 
 ---
 
@@ -437,7 +624,7 @@ This framework draws upon peer-reviewed cybersecurity literature:
 ## Technical Frequently Asked Questions
 
 #### Q1: Does Reverse Engineering Wi-Fi Router modify flash memory or NVRAM?
-No. The framework operates exclusively at the application and management layers of the router's existing administration console. It does not overwrite bootloaders, write to flash partitions, or install custom kernel packages.
+No. The framework operates exclusively at the application and management layers of the router's existing administration console. It does not overwrite bootloaders, write to flash partitions, or install custom kernel packages without explicit manual operator configuration.
 
 #### Q2: Can this framework compromise or brick my device?
 No. The privacy audit workflow is strictly read-only. In the performance optimization workflow, only standard wireless settings exposed by the manufacturer's own web panel (such as channel assignment or channel width) are adjusted, and every transaction requires explicit operator approval before execution.
