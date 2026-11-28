@@ -18,6 +18,26 @@
 
 ---
 
+
+<div align="center">
+
+### 🛠️ Languages & Tech Stack
+
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/dark/pill-python.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/light/pill-python.svg" />
+    <img src="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/dark/pill-python.svg" alt="Python" />
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/dark/pill-shell.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/light/pill-shell.svg" />
+    <img src="https://raw.githubusercontent.com/smartworldarafath/smartworldarafath/main/assets/readme/dark/pill-shell.svg" alt="Shell" />
+  </picture>
+</p>
+
+</div>
+
 ## Executive Summary
 
 **Reverse Engineering Wi-Fi Router** (`Reverse-Engineer-WiFi-Router`) is an open-source technical specification, security audit framework, and autonomous agent skill. Designed for security researchers, embedded engineers, and penetration testers, this repository consolidates the entire lifecycle of reverse engineering Wi-Fi router devices:
